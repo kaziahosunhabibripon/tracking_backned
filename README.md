@@ -1,98 +1,250 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Tracking Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)
+![GraphQL](https://img.shields.io/badge/GraphQL-Apollo-E10098?logo=graphql&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-4169E1?logo=postgresql&logoColor=white)
+![License](https://img.shields.io/badge/License-Private-lightgrey)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+GraphQL API powering the **Tracking** affiliate marketing platform — affiliate & advertiser onboarding, campaign management, and role-based access for the super-admin dashboard and public tracking site.
 
-## Description
+## Table of Contents
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- [Overview](#overview)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Data Model](#data-model)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Available Scripts](#available-scripts)
+- [Authentication & Authorization](#authentication--authorization)
+- [Code Quality & Git Hooks](#code-quality--git-hooks)
+- [License](#license)
 
-## Project setup
+## Overview
 
-```bash
-$ npm install
+`tracking-backend` is a NestJS + GraphQL API backed by PostgreSQL/Prisma. It serves two frontends in the `tracking/` workspace — the internal super-admin dashboard and the public-facing tracking site — replacing their mock data with a real, authenticated data layer.
+
+## Tech Stack
+
+| Layer          | Technology                                                        |
+| -------------- | ----------------------------------------------------------------- |
+| Framework      | [NestJS 11](https://nestjs.com/)                                  |
+| API            | GraphQL (code-first) via `@nestjs/graphql` + Apollo               |
+| Database       | PostgreSQL                                                        |
+| ORM            | [Prisma](https://www.prisma.io/)                                  |
+| Auth           | JWT (access + refresh) via `@nestjs/jwt` + `passport-jwt`, bcrypt |
+| Validation     | class-validator / class-transformer                               |
+| Logging        | Pino (`nestjs-pino`)                                              |
+| Error tracking | Sentry                                                            |
+| Security       | Helmet, `@nestjs/throttler` rate limiting                         |
+| Testing        | Jest, Supertest, Testcontainers (Postgres)                        |
+| Tooling        | ESLint, Prettier, Husky, commitlint, lint-staged                  |
+
+## Architecture
+
+Every request passes through a fixed guard pipeline before reaching a resolver, and every resolver delegates persistence to Prisma:
+
+```mermaid
+flowchart TB
+    Client["Dashboard / Public Site Clients"] -->|GraphQL over HTTPS| Gateway["Apollo GraphQL Gateway<br/>(/graphql)"]
+
+    subgraph Guards["Global Guard Pipeline"]
+        direction LR
+        Throttle["Throttler Guard<br/>(rate limiting)"] --> JwtGuard["JWT Auth Guard"] --> RolesGuard["Roles Guard<br/>(RBAC)"]
+    end
+
+    Gateway --> Throttle
+    RolesGuard --> Resolvers["Resolvers<br/>(Auth · Users · Affiliates · Advertisers)"]
+    Resolvers --> Services["Domain Services"]
+    Services --> Prisma["Prisma Client"]
+    Prisma --> DB[("PostgreSQL")]
+
+    Services -.-> Monitoring["Sentry<br/>Error Reporter"]
+    Gateway -.-> Logging["Pino Structured Logging"]
+    Gateway --> ExceptionFilter["Global Exception Filter"]
+
+    style DB fill:#4169E1,color:#fff
+    style Gateway fill:#E10098,color:#fff
 ```
 
-## Compile and run the project
+## Data Model
 
-```bash
-# development
-$ npm run start
+Core entities and relationships as defined in [`prisma/schema.prisma`](prisma/schema.prisma):
 
-# watch mode
-$ npm run start:dev
+```mermaid
+erDiagram
+    USER {
+        uuid id PK
+        string email UK
+        UserRole role
+        boolean isActive
+    }
+    REFRESH_TOKEN {
+        uuid id PK
+        uuid userId FK
+        string family
+        datetime expiresAt
+        datetime revokedAt
+    }
+    AFFILIATE {
+        uuid id PK
+        uuid userId FK
+        BusinessType businessType
+        AffiliateStatus status
+    }
+    ADVERTISER {
+        uuid id PK
+        uuid userId FK
+        uuid managerId FK
+        string companyName
+        AdvertiserStatus status
+    }
+    CAMPAIGN {
+        uuid id PK
+        uuid advertiserId FK
+        string slug UK
+        CostModel costModel
+        CampaignStatus status
+    }
+    CAMPAIGN_PAYOUT {
+        uuid id PK
+        uuid campaignId FK
+        PayoutType payoutType
+        decimal payoutValue
+    }
+    CAMPAIGN_CAP {
+        uuid id PK
+        uuid campaignId FK
+        CapType capType
+        int capLimit
+    }
+    CAMPAIGN_REMARK {
+        uuid id PK
+        uuid campaignId FK
+        UserRole forRole
+    }
 
-# production mode
-$ npm run start:prod
+    USER ||--o| AFFILIATE : "has profile"
+    USER ||--o| ADVERTISER : "has profile"
+    USER ||--o{ REFRESH_TOKEN : "owns sessions"
+    USER ||--o{ ADVERTISER : "manages (optional)"
+    ADVERTISER ||--o{ CAMPAIGN : "creates"
+    CAMPAIGN ||--o{ CAMPAIGN_PAYOUT : "defines"
+    CAMPAIGN ||--o{ CAMPAIGN_CAP : "defines"
+    CAMPAIGN ||--o{ CAMPAIGN_REMARK : "has"
 ```
 
-## Run tests
+## Project Structure
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+tracking-backend/
+├── prisma/
+│   ├── schema.prisma          # Data model (source of truth for the DB)
+│   └── migrations/            # Versioned SQL migrations
+├── src/
+│   ├── common/                 # Cross-cutting: guards, filters, decorators, pagination, monitoring
+│   ├── config/                 # Env loading, validation, typed config namespaces
+│   ├── database/                # PrismaService, DatabaseModule, seed runner
+│   ├── modules/
+│   │   ├── auth/                # JWT strategy, cookie-based sessions, refresh rotation
+│   │   ├── users/                # User lookups & credential handling
+│   │   ├── affiliates/           # Affiliate profiles
+│   │   └── advertisers/          # Advertiser profiles & campaign ownership
+│   ├── app.module.ts
+│   ├── main.ts
+│   └── schema.gql               # Auto-generated GraphQL schema (code-first)
+└── test/                        # e2e tests
 ```
 
-## Deployment
+## Getting Started
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Prerequisites
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- Node.js ≥ 20
+- PostgreSQL ≥ 15
+- npm
+
+### Installation
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm install
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Configure environment
 
-## Resources
+Copy the template and fill in real values (see [Environment Variables](#environment-variables)):
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+cp .env.example .env.local
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Set up the database
 
-## Support
+```bash
+npm run migration:run   # apply migrations
+npm run seed:run        # seed a super-admin user (reads ADMIN_EMAIL / ADMIN_PASSWORD)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# or both in one step
+npm run db:setup
+```
 
-## Stay in touch
+### Run the app
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+npm run start:dev
+```
+
+The GraphQL endpoint is served at `http://localhost:3000/graphql` (playground enabled outside production).
+
+## Environment Variables
+
+| Variable                                        | Description                                               |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| `PORT`                                          | HTTP port the server listens on                           |
+| `NODE_ENV`                                      | `development` \| `production`                             |
+| `FRONTEND_URL`                                  | Comma-separated CORS allow-list (dashboard + public site) |
+| `GRAPHQL_PATH`                                  | GraphQL endpoint path                                     |
+| `GRAPHQL_INTROSPECTION`                         | Enable schema introspection                               |
+| `DATABASE_URL`                                  | PostgreSQL connection string                              |
+| `JWT_SECRET` / `JWT_EXPIRES_IN`                 | Access token signing secret & TTL                         |
+| `JWT_REFRESH_SECRET` / `JWT_REFRESH_EXPIRES_IN` | Refresh token signing secret & TTL                        |
+| `THROTTLE_TTL` / `THROTTLE_LIMIT`               | Rate limiting window & max requests                       |
+
+Full reference: [`.env.example`](.env.example). Production refuses to boot with placeholder secrets.
+
+## Available Scripts
+
+| Command                       | Purpose                                   |
+| ----------------------------- | ----------------------------------------- |
+| `npm run start:dev`           | Run in watch mode                         |
+| `npm run build`               | Type-check, generate Prisma client, build |
+| `npm run start:prod`          | Run the production build                  |
+| `npm run lint` / `lint:check` | Lint (autofix / check-only)               |
+| `npm run typecheck`           | TypeScript type-check, no emit            |
+| `npm run test` / `test:cov`   | Unit tests / with coverage                |
+| `npm run test:e2e`            | End-to-end tests                          |
+| `npm run migration:dev`       | Create & apply a dev migration            |
+| `npm run migration:run`       | Apply pending migrations                  |
+| `npm run seed:run`            | Run database seeders                      |
+| `npm run prisma:studio`       | Open Prisma Studio                        |
+
+## Authentication & Authorization
+
+- **Sessions:** JWT access token + rotating refresh token, delivered as httpOnly cookies (`cookie.service.ts`). Refresh tokens are DB-backed with family-based rotation — reuse of a revoked token revokes the entire family.
+- **Guard pipeline (global, in order):** rate limiting → JWT authentication → role-based authorization.
+- **Roles:** `SUPER_ADMIN`, `ADMIN`, `MANAGER`, `STAFF`, `AFFILIATE`, `ADVERTISER`, enforced by `RolesGuard` with a fixed rank hierarchy.
+
+## Code Quality & Git Hooks
+
+Enforced via Husky:
+
+- **pre-commit** → `lint-staged` (ESLint + Prettier on staged files)
+- **commit-msg** → `commitlint` ([Conventional Commits](https://www.conventionalcommits.org/))
+- **pre-push** → `typecheck` + `test`
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Private / Unlicensed — internal project, not for redistribution.
