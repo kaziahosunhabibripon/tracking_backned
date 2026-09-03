@@ -45,11 +45,13 @@
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.3",
     "@sentry/node": "^10.73.0",
+    "@types/geoip-lite": "^1.4.4",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
+    "geoip-lite": "^2.0.3",
     "graphql": "^16.14.2",
     "helmet": "^8.3.0",
     "nestjs-pino": "^4.6.1",
@@ -59,7 +61,8 @@
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
@@ -75,6 +78,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",

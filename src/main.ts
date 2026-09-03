@@ -1,4 +1,5 @@
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -64,6 +65,27 @@ async function bootstrap() {
     }),
   );
   app.use(cookieParser());
+  // Capture the raw body BEFORE body-parser mutates it so the postback
+  // HMAC check can verify exactly what the sender signed. We only need
+  // it for `application/json` (postback flow uses `application/x-www-form-
+  // urlencoded`; for that we keep a string copy too).
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buf) => {
+        (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+      },
+    }),
+  );
+  app.use(
+    express.urlencoded({
+      limit: '1mb',
+      extended: true,
+      verify: (req, _res, buf) => {
+        (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+      },
+    }),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -75,7 +97,12 @@ async function bootstrap() {
 
   // CORS origins come from FRONTEND_URL (comma-separated). Every browser
   // client needs listing: the super-admin dashboard AND the public site.
-  const corsOrigins = configService.get<string[]>('app.corsOrigins') ?? [];
+  // NEVER use `origin: true` — that lets any site send authenticated
+  // cross-origin requests; we only allow listed origins and the
+  // credentials flag is set per-origin.
+  const corsOrigins = (configService.get<string[]>('app.corsOrigins') ?? [])
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
   if (corsOrigins.length > 0) {
     logger.log(`CORS allowed origins: ${corsOrigins.join(', ')}`);
   } else if (isProduction) {
@@ -83,17 +110,34 @@ async function bootstrap() {
       'FRONTEND_URL is not set — every browser request will fail CORS.',
     );
   } else {
-    logger.warn('FRONTEND_URL is not set — allowing any origin (development).');
+    logger.warn(
+      'FRONTEND_URL is not set — refusing cross-origin requests (development).',
+    );
   }
 
   app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : !isProduction,
+    origin: (origin, callback) => {
+      // No Origin header (curl, server-to-server) is allowed — those don't
+      // need CORS, only browser-initiated requests do.
+      if (!origin) return callback(null, true);
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+    maxAge: 86400,
   });
   app.enableShutdownHooks();
   app.get(PrismaService).enableShutdownHooks(app);
 
   const port = configService.get<number>('app.port') ?? 3000;
-  await app.listen(port);
+  // Bind to 127.0.0.1 by default so the dev server is NOT reachable from
+  // the public internet (use 0.0.0.0 only behind a reverse proxy in prod
+  // by setting BIND_HOST=0.0.0.0). Reduces attack surface while the
+  // frontend + backend share the same dev box.
+  const bindHost = process.env.BIND_HOST ?? '127.0.0.1';
+  await app.listen(port, bindHost);
+  logger.log(`API listening on http://${bindHost}:${port}`);
 }
 void bootstrap();

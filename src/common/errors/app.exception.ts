@@ -35,6 +35,12 @@ export class ValidationException extends AppException {
   }
 }
 
+export class BadRequestException extends AppException {
+  constructor(message = 'The request is invalid.', details?: ErrorDetails) {
+    super(ErrorCode.BAD_REQUEST, message, HttpStatus.BAD_REQUEST, details);
+  }
+}
+
 export class UnauthorizedException extends AppException {
   constructor(message = 'Authentication is required.', details?: ErrorDetails) {
     super(ErrorCode.UNAUTHORIZED, message, HttpStatus.UNAUTHORIZED, details);

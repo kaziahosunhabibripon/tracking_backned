@@ -2,6 +2,40 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type Advertiser {
+  commissionRate: String
+  companyName: String!
+  contactId: String
+  contactMethod: ContactMethod
+  country: String!
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  managerId: ID
+  payoutMethod: String
+  phone: String!
+  referralCode: String
+  status: AdvertiserStatus!
+  updatedAt: DateTime!
+  userId: ID!
+}
+
+input AdvertiserFilterInput {
+  managerId: String
+  search: String
+  status: AdvertiserStatus
+}
+
+"""
+Application/account status shown on the advertisers table. PENDING = awaiting admin review, ACTIVE = approved and can run campaigns, INACTIVE = disabled by admin or self, SUSPENDED = temporarily blocked.
+"""
+enum AdvertiserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
 type AuthPayload {
   accessToken: String!
   expiresIn: Int!
@@ -20,12 +54,176 @@ enum BusinessType {
   OTHER
 }
 
+type Campaign {
+  advertiserId: ID!
+  caps: [CampaignCap!]!
+  category: String!
+  costModel: CostModel!
+  createdAt: DateTime!
+  currency: Currency!
+  defaultCost: String!
+  description: String
+  endDate: DateTime!
+  geo: [String!]!
+  icon: String
+  id: ID!
+  kpi: String
+  name: String!
+  partner: String
+  payouts: [CampaignPayout!]!
+  previewLink: String!
+  remarks: [CampaignRemark!]!
+  slug: String!
+  startDate: DateTime!
+  status: CampaignStatus!
+  title: String!
+  trackingLink: String!
+  trafficAllowed: [String!]!
+  updatedAt: DateTime!
+}
+
+type CampaignCap {
+  campaignId: ID!
+  capLimit: Int!
+  capType: CapType!
+  currentCount: Int!
+  id: ID!
+  resetAt: DateTime
+}
+
+input CampaignFilterInput {
+  category: String
+  search: String
+  status: CampaignStatus
+}
+
+type CampaignOptions {
+  categories: [SelectOption!]!
+  currencies: [SelectOption!]!
+  partners: [SelectOption!]!
+  trafficTypes: [String!]!
+}
+
+type CampaignPayout {
+  campaignId: ID!
+  country: String
+  currency: Currency!
+  device: String
+  id: ID!
+  payoutType: PayoutType!
+  payoutValue: String!
+  platform: String
+}
+
+type CampaignRemark {
+  campaignId: ID!
+  createdAt: DateTime!
+  forRole: UserRole!
+  id: ID!
+  text: String!
+}
+
+"""
+DRAFT = being authored; PENDING_APPROVAL = waiting on admin/manager review; ACTIVE = live and tracking; PAUSED = temporarily off; EXPIRED = endDate passed; REJECTED = admin denied.
+"""
+enum CampaignStatus {
+  ACTIVE
+  DRAFT
+  EXPIRED
+  PAUSED
+  PENDING_APPROVAL
+  REJECTED
+}
+
+"""Cadence the cap resets on. TOTAL never resets until manually changed."""
+enum CapType {
+  DAILY
+  MONTHLY
+  TOTAL
+  WEEKLY
+}
+
 """The applicant's preferred contact channel."""
 enum ContactMethod {
   EMAIL
   SKYPE
   TELEGRAM
   WHATSAPP
+}
+
+"""How the advertiser is charged for conversions."""
+enum CostModel {
+  CPA
+  CPL
+  CPS
+  REVSHARE
+}
+
+input CreateAdvertiserInput {
+  commissionRate: String
+  companyName: String!
+  contactId: String
+  contactMethod: ContactMethod
+  country: String!
+  description: String
+  email: String!
+  firstName: String!
+  lastName: String!
+  managerId: String
+  password: String!
+  payoutMethod: String
+  phone: String!
+  referralCode: String
+  status: AdvertiserStatus
+}
+
+input CreateCampaignCapInput {
+  capLimit: Int!
+  capType: CapType!
+}
+
+input CreateCampaignInput {
+  caps: [CreateCampaignCapInput!]
+  category: String!
+  costModel: CostModel
+  currency: Currency
+  defaultCost: String!
+  description: String
+  endDate: String!
+  geo: [String!]
+  icon: String
+  kpi: String
+  name: String!
+  partner: String
+  payouts: [CreateCampaignPayoutInput!]
+  previewLink: String!
+  remarks: [CreateCampaignRemarkInput!]
+  startDate: String!
+  status: CampaignStatus
+  title: String!
+  trackingLink: String!
+  trafficAllowed: [String!]
+}
+
+input CreateCampaignPayoutInput {
+  country: String
+  currency: Currency
+  device: String
+  payoutType: PayoutType!
+  payoutValue: String!
+  platform: String
+}
+
+input CreateCampaignRemarkInput {
+  forRole: UserRole!
+  text: String!
+}
+
+"""ISO-4217 currency code used for payouts and totals."""
+enum Currency {
+  EUR
+  GBP
+  USD
 }
 
 """The affiliate platform the applicant currently uses, if any."""
@@ -44,6 +242,9 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Mutation {
+  createAdvertiser(input: CreateAdvertiserInput!): Advertiser!
+  createCampaign(input: CreateCampaignInput!): Campaign!
+
   """Revoke the current session and clear auth cookies."""
   logout: Boolean!
 
@@ -53,10 +254,32 @@ type Mutation {
   """Affiliate self-registration ("Apply Now" on /sign-up)."""
   registerAffiliate(input: RegisterAffiliateInput!): AuthPayload!
   signIn(input: SignInInput!): AuthPayload!
+  softDeleteAdvertiser(id: ID!): Advertiser!
+  softDeleteCampaign(id: ID!): Campaign!
+  toggleCampaignStatus(id: ID!): Campaign!
+  updateAdvertiser(input: UpdateAdvertiserInput!): Advertiser!
+  updateCampaign(input: UpdateCampaignInput!): Campaign!
+}
+
+"""How a payout is computed for a single conversion."""
+enum PayoutType {
+  CPA
+  CPL
+  CPS
+  FLAT
+  REVSHARE
 }
 
 type Query {
+  advertiser(id: ID!): Advertiser!
+  advertisers(filter: AdvertiserFilterInput, skip: Int! = 0, take: Int! = 20): [Advertiser!]!
+  advertisersCount(filter: AdvertiserFilterInput): Int!
+  campaign(id: ID!): Campaign!
+  campaignOptions: CampaignOptions!
+  campaigns(filter: CampaignFilterInput, my: Boolean, skip: Int! = 0, take: Int! = 20): [Campaign!]!
+  campaignsCount(filter: CampaignFilterInput, my: Boolean): Int!
   me: User!
+  myAdvertiserProfile(id: ID): Advertiser!
 }
 
 """How the applicant heard about the network."""
@@ -81,9 +304,57 @@ input RegisterAffiliateInput {
   referralSource: ReferralSource
 }
 
+type SelectOption {
+  label: String!
+  value: String!
+}
+
 input SignInInput {
   email: String!
   password: String!
+}
+
+input UpdateAdvertiserInput {
+  commissionRate: String
+  companyName: String
+  contactId: String
+  contactMethod: ContactMethod
+  country: String
+  description: String
+  email: String
+  firstName: String
+  id: ID!
+  lastName: String
+  managerId: String
+  password: String
+  payoutMethod: String
+  phone: String
+  referralCode: String
+  status: AdvertiserStatus
+}
+
+input UpdateCampaignInput {
+  caps: [CreateCampaignCapInput!]
+  category: String
+  costModel: CostModel
+  currency: Currency
+  defaultCost: String
+  description: String
+  endDate: String
+  geo: [String!]
+  icon: String
+  id: ID!
+  kpi: String
+  name: String
+  partner: String
+  payouts: [CreateCampaignPayoutInput!]
+  previewLink: String
+  remarks: [CreateCampaignRemarkInput!]
+  startDate: String
+  status: CampaignStatus
+  title: String
+  trackingLink: String
+  trafficAllowed: [String!]
 }
 
 type User {
@@ -101,6 +372,7 @@ type User {
 """A user's fixed staff/affiliate role."""
 enum UserRole {
   ADMIN
+  ADVERTISER
   AFFILIATE
   MANAGER
   STAFF

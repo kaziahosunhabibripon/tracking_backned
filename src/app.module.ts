@@ -29,11 +29,19 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { MonitoringModule } from './common/monitoring/monitoring.module';
 import { DatabaseModule } from './database/database.module';
 import { DatabaseSeedService } from './database/seeds/database-seed.service';
+import { HealthModule } from './modules/health/health.module';
+import { AdvertisersModule } from './modules/advertisers/advertisers.module';
 import { AffiliatesModule } from './modules/affiliates/affiliates.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { GqlJwtAuthGuard } from './modules/auth/guards/gql-jwt-auth.guard';
 import { GqlThrottlerGuard } from './modules/auth/guards/gql-throttler.guard';
 import { UsersModule } from './modules/users/users.module';
+import { CampaignsModule } from './modules/campaigns/campaigns.module';
+import { FilesModule } from './modules/files/files.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
+import './modules/affiliates/enums/affiliate.enums';
+import './modules/advertisers/enums/advertiser.enums';
+import './modules/campaigns/enums/campaign.enums';
 
 // Populate process.env from the env file BEFORE module metadata evaluates —
 // anything reading process.env at module scope (e.g. a module gating a queue
@@ -99,8 +107,11 @@ loadAppEnv();
           path: configService.get<string>('graphql.path') ?? '/graphql',
           autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
           sortSchema: true,
+          // Hard-locked off in production regardless of GRAPHQL_INTROSPECTION —
+          // an env file mistake must never expose the schema on a live API.
           introspection:
-            configService.get<boolean>('graphql.introspection') ?? false,
+            !isProduction &&
+            (configService.get<boolean>('graphql.introspection') ?? false),
           playground: !isProduction,
           graphiql: false,
           csrfPrevention: isProduction,
@@ -116,8 +127,13 @@ loadAppEnv();
       },
     }),
     MonitoringModule,
+    HealthModule,
     UsersModule,
     AffiliatesModule,
+    AdvertisersModule,
+    CampaignsModule,
+    FilesModule,
+    TrackingModule,
     AuthModule,
   ],
   controllers: [AppController],

@@ -2,7 +2,11 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { UserRole } from '@prisma/client';
-import { IS_PUBLIC_KEY, ROLES_KEY } from '../constants/metadata.constants';
+import {
+  IS_PUBLIC_KEY,
+  ROLES_EXACT_KEY,
+  ROLES_KEY,
+} from '../constants/metadata.constants';
 import {
   ForbiddenException,
   UnauthorizedException,
@@ -10,18 +14,18 @@ import {
 import type { AuthenticatedUser } from '../../modules/auth/interfaces/authenticated-user.interface';
 
 /**
- * Role rank for hierarchy — a higher rank satisfies a lower-rank requirement.
- *
- * This is the fixed staff/affiliate hierarchy only. The dashboard's Settings →
- * Role tab (dynamic named roles + per-permission grants) is a SEPARATE,
- * data-driven system layered on top of this later — it does not replace it.
+ * Role rank for the hierarchical gate (`@Roles(...)`).
+ * ADVERTISER is a peer to the staff track, not above it; advertiser-only
+ * endpoints should use `@RolesExact(UserRole.ADVERTISER, ...)` so an
+ * ADVERTISER cannot accidentally inherit staff/affiliate powers via rank.
  */
 export const ROLE_RANK: Record<UserRole, number> = {
   [UserRole.AFFILIATE]: 1,
-  [UserRole.STAFF]: 2,
-  [UserRole.MANAGER]: 3,
-  [UserRole.ADMIN]: 4,
-  [UserRole.SUPER_ADMIN]: 5,
+  [UserRole.ADVERTISER]: 2,
+  [UserRole.STAFF]: 3,
+  [UserRole.MANAGER]: 4,
+  [UserRole.ADMIN]: 5,
+  [UserRole.SUPER_ADMIN]: 6,
 };
 
 @Injectable()
@@ -37,11 +41,19 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+    const exactRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_EXACT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    const hierarchicalRoles = this.reflector.getAllAndOverride<UserRole[]>(
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
-    if (!requiredRoles || requiredRoles.length === 0) {
+
+    if (
+      (!exactRoles || exactRoles.length === 0) &&
+      (!hierarchicalRoles || hierarchicalRoles.length === 0)
+    ) {
       return true;
     }
 
@@ -50,14 +62,39 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    const userRank = ROLE_RANK[user.role] ?? 0;
-    const allowed = requiredRoles.some(
-      (role) => userRank >= (ROLE_RANK[role] ?? Infinity),
-    );
-    if (!allowed) {
+    if (exactRoles && exactRoles.length > 0) {
+      if (exactRoles.includes(user.role)) {
+        return true;
+      }
+      // Hierarchical roles can further relax exact-match — e.g.
+      // @RolesExact(AFFILIATE) + @Roles(SUPER_ADMIN) lets a super admin
+      // poke the affiliate surface (admin tools, support).
+      if (
+        hierarchicalRoles &&
+        hierarchicalRoles.length > 0 &&
+        this.meetsRank(user.role, hierarchicalRoles)
+      ) {
+        return true;
+      }
       throw new ForbiddenException();
     }
+
+    if (hierarchicalRoles && hierarchicalRoles.length > 0) {
+      if (this.meetsRank(user.role, hierarchicalRoles)) {
+        return true;
+      }
+      throw new ForbiddenException();
+    }
+
     return true;
+  }
+
+  private meetsRank(role: UserRole, required: UserRole[]): boolean {
+    const userRank = ROLE_RANK[role] ?? 0;
+    const minRequiredRank = Math.min(
+      ...required.map((r) => ROLE_RANK[r] ?? Infinity),
+    );
+    return userRank >= minRequiredRank;
   }
 
   private getUser(context: ExecutionContext): AuthenticatedUser | undefined {

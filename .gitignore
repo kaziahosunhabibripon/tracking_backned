@@ -58,3 +58,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Prisma generated client
 /generated
+
+# User-uploaded files (runtime data, not source)
+/uploads

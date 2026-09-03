@@ -116,6 +116,8 @@ model Affiliate {
   status          AffiliateStatus  @default(PENDING)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+
+  conversions Conversion[]
 }
 
 // ---- Advertisers (Phase 2) ----
@@ -219,6 +221,8 @@ model Campaign {
   payouts CampaignPayout[]
   caps    CampaignCap[]
   remarks CampaignRemark[]
+  clicks  Click[]
+  conversions Conversion[]
 
   @@index([advertiserId, status])
   @@index([createdAt])
@@ -261,4 +265,101 @@ model CampaignRemark {
   createdAt  DateTime @default(now())
 
   @@index([campaignId])
+}
+
+// ---- Tracking core (Phase 3) ----
+
+enum ConversionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Click {
+  id          String   @id @default(uuid()) @db.Uuid
+  campaignId  String?  @db.Uuid
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  /**
+   * Public-facing click ID — used by affiliate networks to attribute their
+   * postback back to our click. Uniqueness is critical: a duplicate would
+   * double-attribute one click to two conversions. UUIDv4 → 1 in 2^122
+   * collision risk, negligible.
+   */
+  clickId     String   @unique
+  ip          String
+  userAgent   String   @db.Text
+  country     String?
+  device      String?
+  browser     String?
+  os          String?
+  referrer    String?
+  source      String?  // traffic source / utm_source
+  isUnique    Boolean  @default(false)
+  /**
+   * Whether recording this click breached a CampaignCap. The click is
+   * still stored (for fraud analysis) but won't generate downstream
+   * conversions because `capBlocked` is checked at postback time.
+   */
+  capBlocked  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  conversions Conversion[]
+
+  @@index([campaignId, createdAt])
+  @@index([createdAt])
+  @@index([ip, campaignId, createdAt])
+}
+
+model Conversion {
+  id            String           @id @default(uuid()) @db.Uuid
+  campaignId    String?          @db.Uuid
+  campaign      Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  clickId       String
+  click         Click            @relation(fields: [clickId], references: [clickId])
+  affiliateId   String?          @db.Uuid
+  affiliate     Affiliate?       @relation(fields: [affiliateId], references: [id])
+  revenue       Decimal          @db.Decimal(14, 4)
+  payout        Decimal          @db.Decimal(14, 4)
+  status        ConversionStatus @default(PENDING)
+  /**
+   * Advertiser-supplied transaction id (txn_id). Always unique — used
+   * to dedupe replays of the same postback. Indexed because the hot
+   * postback path is "INSERT ... ON CONFLICT DO NOTHING".
+   */
+  transactionId String           @unique
+  goalId        String?
+  createdAt     DateTime         @default(now())
+
+  @@index([campaignId, status, createdAt])
+  @@index([affiliateId, createdAt])
+}
+
+model AffiliatePostbackLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  affiliateId   String?  @db.Uuid
+  transactionId String
+  endpointUrl   String   @db.Text
+  httpStatus    Int
+  attempts      Int      @default(1)
+  successful    Boolean
+  payload       Json?
+  createdAt     DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([createdAt])
+}
+
+model AdvertiserPostbackLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  advertiserId  String?  @db.Uuid
+  transactionId String
+  endpointUrl   String   @db.Text
+  httpStatus    Int
+  attempts      Int      @default(1)
+  successful    Boolean
+  payload       Json?
+  createdAt     DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([createdAt])
 }
