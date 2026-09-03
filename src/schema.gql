@@ -1,0 +1,108 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type AuthPayload {
+  accessToken: String!
+  expiresIn: Int!
+  refreshExpiresIn: Int!
+  refreshToken: String!
+  tokenType: String!
+  user: User!
+}
+
+"""What kind of business the applicant runs."""
+enum BusinessType {
+  ADVERTISER
+  AFFILIATE
+  AGENCY
+  NETWORK
+  OTHER
+}
+
+"""The applicant's preferred contact channel."""
+enum ContactMethod {
+  EMAIL
+  SKYPE
+  TELEGRAM
+  WHATSAPP
+}
+
+"""The affiliate platform the applicant currently uses, if any."""
+enum CurrentPlatform {
+  AFFISE
+  CAKE
+  EVERFLOW
+  HASOFFERS
+  NONE
+  OTHER
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Mutation {
+  """Revoke the current session and clear auth cookies."""
+  logout: Boolean!
+
+  """Rotate the refresh session (reads the httpOnly refresh cookie)."""
+  refreshSession: AuthPayload!
+
+  """Affiliate self-registration ("Apply Now" on /sign-up)."""
+  registerAffiliate(input: RegisterAffiliateInput!): AuthPayload!
+  signIn(input: SignInInput!): AuthPayload!
+}
+
+type Query {
+  me: User!
+}
+
+"""How the applicant heard about the network."""
+enum ReferralSource {
+  EVENT
+  OTHER
+  REFERRAL
+  SEARCH
+  SOCIAL
+}
+
+input RegisterAffiliateInput {
+  businessType: BusinessType!
+  contactMethod: ContactMethod
+  country: String!
+  currentPlatform: CurrentPlatform
+  email: String!
+  firstName: String!
+  lastName: String!
+  password: String!
+  phone: String!
+  referralSource: ReferralSource
+}
+
+input SignInInput {
+  email: String!
+  password: String!
+}
+
+type User {
+  createdAt: DateTime!
+  email: String!
+  emailVerifiedAt: DateTime
+  firstName: String!
+  id: ID!
+  isActive: Boolean!
+  lastLoginAt: DateTime
+  lastName: String!
+  role: UserRole!
+}
+
+"""A user's fixed staff/affiliate role."""
+enum UserRole {
+  ADMIN
+  AFFILIATE
+  MANAGER
+  STAFF
+  SUPER_ADMIN
+}
