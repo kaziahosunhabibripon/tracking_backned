@@ -39,9 +39,20 @@ import { UsersModule } from './modules/users/users.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { FilesModule } from './modules/files/files.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { OffersModule } from './modules/offers/offers.module';
+import { AffiliateGroupsModule } from './modules/affiliate-groups/affiliate-groups.module';
+import { AffiliatePaymentsModule } from './modules/affiliate-payments/affiliate-payments.module';
+import { ReferralProgramsModule } from './modules/referral-programs/referral-programs.module';
 import './modules/affiliates/enums/affiliate.enums';
 import './modules/advertisers/enums/advertiser.enums';
 import './modules/campaigns/enums/campaign.enums';
+import './modules/reports/enums/reports.enums';
+import './modules/billing/enums/billing.enums';
+import './modules/offers/enums/offer.enums';
 
 // Populate process.env from the env file BEFORE module metadata evaluates —
 // anything reading process.env at module scope (e.g. a module gating a queue
@@ -134,6 +145,14 @@ loadAppEnv();
     CampaignsModule,
     FilesModule,
     TrackingModule,
+    ReportsModule,
+    NotificationsModule,
+    SettingsModule,
+    BillingModule,
+    OffersModule,
+    AffiliateGroupsModule,
+    AffiliatePaymentsModule,
+    ReferralProgramsModule,
     AuthModule,
   ],
   controllers: [AppController],

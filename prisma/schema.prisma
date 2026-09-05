@@ -113,14 +113,102 @@ model Affiliate {
   contactMethod   ContactMethod?
   currentPlatform CurrentPlatform  @default(NONE)
   referralSource  ReferralSource?
+  referralCode    String?          @unique
   status          AffiliateStatus  @default(PENDING)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
   conversions Conversion[]
+  fraudCases  FraudCase[]
+  groupMembers AffiliateGroupMember[]
+  paymentTerms PaymentTerm[]
+  payments AffiliatePayment[]
+  referralsSent Referral[] @relation("Referrer")
+  referralsReceived Referral[] @relation("Referred")
+
+  @@index([status])
 }
 
-// ---- Advertisers (Phase 2) ----
+model AffiliateGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?  @db.Text
+  budget      Decimal? @db.Decimal(12, 4)
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members AffiliateGroupMember[]
+
+  @@index([name])
+}
+
+model AffiliateGroupMember {
+  id            String        @id @default(uuid()) @db.Uuid
+  groupId       String        @db.Uuid
+  group         AffiliateGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  affiliateId   String        @db.Uuid
+  affiliate     Affiliate     @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  role          String        @default("MEMBER")
+  joinedAt      DateTime      @default(now())
+
+  @@unique([groupId, affiliateId])
+  @@index([affiliateId])
+}
+
+model PaymentTerm {
+  id            String   @id @default(uuid()) @db.Uuid
+  affiliateId   String   @db.Uuid
+  affiliate     Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  minPayout     Decimal  @db.Decimal(10, 2)
+  paymentMethod String
+  currency      String   @default("USD")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([affiliateId])
+  @@index([affiliateId])
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+model AffiliatePayment {
+  id            String          @id @default(uuid()) @db.Uuid
+  affiliateId   String          @db.Uuid
+  affiliate     Affiliate       @relation(fields: [affiliateId], references: [id])
+  amount        Decimal         @db.Decimal(10, 2)
+  currency      String          @default("USD")
+  status        PaymentStatus   @default(PENDING)
+  paymentMethod String
+  transactionId String?
+  paidAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([affiliateId])
+  @@index([status])
+}
+
+model Referral {
+  id            String    @id @default(uuid()) @db.Uuid
+  referrerId    String    @db.Uuid
+  referrer      Affiliate @relation("Referrer", fields: [referrerId], references: [id])
+  referredId    String    @db.Uuid
+  referred      Affiliate @relation("Referred", fields: [referredId], references: [id])
+  code          String
+  createdAt     DateTime  @default(now())
+
+  @@unique([code])
+  @@index([referrerId])
+  @@index([referredId])
+}
+
+// ---- Advertisers (Phase 2) -------
 
 enum AdvertiserStatus {
   PENDING
@@ -149,6 +237,7 @@ model Advertiser {
   updatedAt      DateTime         @updatedAt
 
   campaigns Campaign[]
+  offers    Offer[]
 
   @@index([managerId])
   @@index([status])
@@ -198,6 +287,8 @@ model Campaign {
   slug           String         @unique
   advertiserId   String         @db.Uuid
   advertiser     Advertiser     @relation(fields: [advertiserId], references: [id])
+  offerId        String?        @db.Uuid
+  offer          Offer?         @relation(fields: [offerId], references: [id])
   name           String
   title          String
   description    String?
@@ -265,6 +356,100 @@ model CampaignRemark {
   createdAt  DateTime @default(now())
 
   @@index([campaignId])
+}
+
+// ---- Offers (Phase 6 — super-admin created) ----
+
+enum OfferType {
+  CPA
+  CPL
+  CPS
+  CPI
+}
+
+enum OfferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  PAUSED
+  EXPIRED
+}
+
+enum OfferAccess {
+  PUBLIC
+  PRIVATE
+}
+
+model Offer {
+  id              String      @id @default(uuid()) @db.Uuid
+  advertiserId    String      @db.Uuid
+  advertiser      Advertiser  @relation(fields: [advertiserId], references: [id])
+  name            String
+  slug            String      @unique
+  type            OfferType
+  category        String
+  currency        Currency    @default(USD)
+  previewLink     String
+  trackingLink    String
+  description     String?
+  icon            String?
+  trafficSources  String[]
+  status          OfferStatus @default(PENDING)
+  access          OfferAccess @default(PUBLIC)
+  networkOfferId  String?     @unique
+  startDate       DateTime?
+  endDate         DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  payouts OfferPayout[]
+  caps    OfferCap[]
+  remarks OfferRemark[]
+  campaigns Campaign[]
+  fraudCases FraudCase[]
+
+  @@index([advertiserId, status])
+  @@index([createdAt])
+}
+
+model OfferPayout {
+  id          String     @id @default(uuid()) @db.Uuid
+  offerId     String     @db.Uuid
+  offer       Offer      @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  country     String?
+  device      String?
+  platform    String?
+  payoutType  PayoutType
+  payoutValue Decimal    @db.Decimal(12, 4)
+  currency    Currency   @default(USD)
+  createdAt   DateTime   @default(now())
+
+  @@index([offerId])
+}
+
+model OfferCap {
+  id           String    @id @default(uuid()) @db.Uuid
+  offerId      String    @db.Uuid
+  offer        Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  capType      CapType
+  capLimit     Int
+  currentCount Int       @default(0)
+  resetAt      DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([offerId])
+}
+
+model OfferRemark {
+  id         String   @id @default(uuid()) @db.Uuid
+  offerId    String   @db.Uuid
+  offer      Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  forRole    UserRole
+  text       String
+  createdAt  DateTime @default(now())
+
+  @@index([offerId])
 }
 
 // ---- Tracking core (Phase 3) ----
@@ -362,4 +547,167 @@ model AdvertiserPostbackLog {
 
   @@index([transactionId])
   @@index([createdAt])
+}
+
+model FraudCase {
+  id            String          @id @default(uuid()) @db.Uuid
+  affiliateId   String?         @db.Uuid
+  affiliate     Affiliate?      @relation(fields: [affiliateId], references: [id])
+  offerId       String?         @db.Uuid
+  offer         Offer?        @relation(fields: [offerId], references: [id])
+  reason        String
+  flaggedClicks Int             @default(0)
+  fraudPercent  Decimal         @db.Decimal(5, 2)
+  risk          FraudRiskLevel
+  status        FraudCaseStatus @default(OPEN)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([affiliateId])
+  @@index([offerId])
+  @@index([status])
+}
+
+enum FraudRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FraudCaseStatus {
+  OPEN
+  BLOCKED
+  CLEARED
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  message   String   @db.Text
+  type      String   @default("info")
+  broadcast Boolean @default(false)
+  createdAt DateTime @default(now())
+  reads     NotificationRead[]
+
+  @@index([createdAt])
+}
+
+model NotificationRead {
+  id            String    @id @default(uuid()) @db.Uuid
+  notificationId String   @db.Uuid
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId        String    @db.Uuid
+  readAt        DateTime?
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+}
+
+model Setting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+enum PlanInterval {
+  MONTH
+  YEAR
+}
+
+model Plan {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  description String?       @db.Text
+  price       Decimal       @db.Decimal(10, 2)
+  interval    PlanInterval  @default(MONTH)
+  stripePriceId String?     @unique
+  features    Json
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  subscriptions Subscription[]
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+}
+
+model Subscription {
+  id                 String              @id @default(uuid()) @db.Uuid
+  userId             String              @db.Uuid
+  planId             String              @db.Uuid
+  plan               Plan                @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus  @default(INCOMPLETE)
+  stripeSubscriptionId String?           @unique
+  stripeCustomerId   String?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean             @default(false)
+  canceledAt         DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([stripeSubscriptionId])
+}
+
+enum PaymentMethodType {
+  CARD
+  SEPA_DEBIT
+  US_BANK_ACCOUNT
+}
+
+model PaymentMethod {
+  id                  String             @id @default(uuid()) @db.Uuid
+  userId              String             @db.Uuid
+  type                PaymentMethodType
+  stripePaymentMethodId String           @unique
+  isDefault           Boolean            @default(false)
+  last4               String?
+  brand               String?
+  expiryMonth         Int?
+  expiryYear          Int?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([userId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+model Invoice {
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @db.Uuid
+  subscriptionId    String?          @db.Uuid
+  stripeInvoiceId   String?          @unique
+  number            String?
+  status            InvoiceStatus    @default(DRAFT)
+  amountDue         Decimal          @db.Decimal(10, 2)
+  amountPaid        Decimal          @db.Decimal(10, 2)
+  currency          String           @default("USD")
+  invoicePdf        String?
+  hostedInvoiceUrl  String?
+  dueDate           DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([stripeInvoiceId])
 }

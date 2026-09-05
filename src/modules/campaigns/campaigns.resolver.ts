@@ -61,7 +61,7 @@ export class CampaignsResolver {
       skip ?? 0,
       take ?? 20,
     );
-    return items.map((c) => this.campaignsService.toDto(c) as Campaign);
+    return items.map((c) => this.campaignsService.toDto(c));
   }
 
   @Roles(
@@ -112,7 +112,7 @@ export class CampaignsResolver {
     const c = await this.campaignsService.findById(id);
     if (!c) throw new NotFoundException('Campaign not found.');
     await this.assertCanRead(user, c.advertiserId);
-    return this.campaignsService.toDto(c) as Campaign;
+    return this.campaignsService.toDto(c);
   }
 
   @RolesExact(UserRole.ADVERTISER)
@@ -136,7 +136,7 @@ export class CampaignsResolver {
     // Service returns the campaign WITH its nested payouts/caps/remarks
     // in one round-trip — no follow-up findById here.
     const created = await this.campaignsService.create(own.id, input);
-    return this.campaignsService.toDto(created) as Campaign;
+    return this.campaignsService.toDto(created);
   }
 
   @RolesExact(UserRole.ADVERTISER)
@@ -149,7 +149,7 @@ export class CampaignsResolver {
     if (!existing) throw new NotFoundException('Campaign not found.');
     await this.assertCanWrite(user, existing.advertiserId);
     const updated = await this.campaignsService.update(input);
-    return this.campaignsService.toDto(updated) as Campaign;
+    return this.campaignsService.toDto(updated);
   }
 
   @RolesExact(UserRole.ADVERTISER)
@@ -162,7 +162,7 @@ export class CampaignsResolver {
     if (!existing) throw new NotFoundException('Campaign not found.');
     await this.assertCanWrite(user, existing.advertiserId);
     const updated = await this.campaignsService.toggleStatus(id);
-    return this.campaignsService.toDto(updated) as Campaign;
+    return this.campaignsService.toDto(updated);
   }
 
   @RolesExact(UserRole.ADVERTISER)
@@ -175,7 +175,7 @@ export class CampaignsResolver {
     if (!existing) throw new NotFoundException('Campaign not found.');
     await this.assertCanWrite(user, existing.advertiserId);
     const updated = await this.campaignsService.softDelete(id);
-    return this.campaignsService.toDto(updated) as Campaign;
+    return this.campaignsService.toDto(updated);
   }
 
   private async assertCanRead(

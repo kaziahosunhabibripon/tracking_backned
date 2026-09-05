@@ -5,6 +5,8 @@ import { CreateCampaignInput } from './dto/create-campaign.input';
 import { CampaignFilterInput } from './dto/filter-campaigns.input';
 import { UpdateCampaignInput } from './dto/update-campaign.input';
 import { AdvertisersService } from '../advertisers/advertisers.service';
+import { Campaign } from './entities/campaign.entity';
+import { CampaignPayout } from './entities/campaign-payout.entity';
 
 /** Slugify for the public `tracking/r/:slug` URL — keep URL-safe. */
 function slugify(input: string): string {
@@ -256,14 +258,14 @@ export class CampaignsService {
       caps?: unknown;
       remarks?: unknown;
     },
-  ) {
+  ): Campaign {
     return {
       ...c,
       defaultCost: c.defaultCost.toFixed(4),
       payouts: (c.payouts ?? []).map((p) => ({
         ...p,
         payoutValue: p.payoutValue.toFixed(4),
-      })),
-    };
+      })) as CampaignPayout[],
+    } as Campaign;
   }
 }

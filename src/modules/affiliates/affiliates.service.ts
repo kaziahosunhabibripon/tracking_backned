@@ -39,4 +39,8 @@ export class AffiliatesService {
   findByUserId(userId: string): Promise<PrismaAffiliate | null> {
     return this.prisma.affiliate.findUnique({ where: { userId } });
   }
+
+  findAll(): Promise<PrismaAffiliate[]> {
+    return this.prisma.affiliate.findMany();
+  }
 }

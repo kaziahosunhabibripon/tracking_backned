@@ -70,6 +70,25 @@ export class DatabaseSeedService implements OnApplicationBootstrap {
       lastName: 'Ads',
       role: UserRole.ADVERTISER,
     });
+
+    const affiliateUser = await this.usersService.ensureUser({
+      email: 'affiliate@example.com',
+      password: 'Test123!@#',
+      firstName: 'Affiliate',
+      lastName: 'One',
+      role: UserRole.AFFILIATE,
+    });
+
+    const affiliate = await this.prisma.affiliate.findUnique({
+      where: { userId: affiliateUser.id },
+    });
+
+    if (affiliate) {
+      await this.prisma.affiliate.update({
+        where: { id: affiliate.id },
+        data: { referralCode: `REF-${affiliate.id.slice(0, 8).toUpperCase()}` },
+      });
+    }
     this.logger.log(`Advertiser user seed ensured: ${advertiserUser.email}`);
 
     const existingAdvertiser = await this.prisma.advertiser.findUnique({
@@ -124,5 +143,78 @@ export class DatabaseSeedService implements OnApplicationBootstrap {
         this.logger.log('Sample campaign seed ensured.');
       }
     }
+
+    await this.prisma.notification.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000001' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000001',
+        title: 'Welcome to Dicetrack',
+        message: 'Your network account is ready. Start creating campaigns.',
+        type: 'info',
+        broadcast: true,
+      },
+    });
+
+    await this.prisma.setting.upsert({
+      where: { key: 'network.name' },
+      update: {},
+      create: {
+        key: 'network.name',
+        value: { value: 'Dicetrack' },
+      },
+    });
+
+    await this.prisma.plan.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000001' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000001',
+        name: 'Starter',
+        description: 'For small networks',
+        price: new Prisma.Decimal('49.00'),
+        interval: 'MONTH',
+        stripePriceId: 'price_starter',
+        features: { maxUsers: 5, maxCampaigns: 10 },
+        isActive: true,
+      },
+    });
+
+    const starterPlan = await this.prisma.plan.findFirst({
+      where: { name: 'Starter' },
+    });
+
+    if (starterPlan && advertiserUser) {
+      await this.prisma.subscription.upsert({
+        where: { id: '00000000-0000-0000-0000-000000000001' },
+        update: {},
+        create: {
+          id: '00000000-0000-0000-0000-000000000001',
+          userId: advertiserUser.id,
+          planId: starterPlan.id,
+          status: 'ACTIVE',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+
+    await this.prisma.offer.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000001' },
+      update: {},
+      create: {
+        id: '00000000-0000-0000-0000-000000000001',
+        advertiserId: advertiser?.id ?? '',
+        name: 'Sample Offer',
+        slug: 'sample-offer',
+        type: 'CPA',
+        category: 'loan-and-finance',
+        previewLink: 'https://example.com/offer',
+        trackingLink: 'https://example.com/offer/track',
+        description: 'Sample offer seeded for development.',
+        status: 'ACTIVE',
+        access: 'PUBLIC',
+      },
+    });
   }
 }

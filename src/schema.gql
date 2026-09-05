@@ -26,6 +26,32 @@ input AdvertiserFilterInput {
   status: AdvertiserStatus
 }
 
+type AdvertiserPostbackLogRecord {
+  advertiserId: String!
+  attempts: Int!
+  endpointUrl: String!
+  httpStatus: Int!
+  postbackDate: String!
+  postbackId: String!
+  postbackTime: String!
+  successful: Boolean!
+  transactionId: String!
+}
+
+type AdvertiserReportRecord {
+  advertiserId: String!
+  avatarSlot: Int!
+  clicks: Int!
+  company: String!
+  conversions: Int!
+  initials: String!
+  name: String!
+  offersCount: Int!
+  payoutRate: Float!
+  revenue: Float!
+  status: String!
+}
+
 """
 Application/account status shown on the advertisers table. PENDING = awaiting admin review, ACTIVE = approved and can run campaigns, INACTIVE = disabled by admin or self, SUSPENDED = temporarily blocked.
 """
@@ -34,6 +60,74 @@ enum AdvertiserStatus {
   INACTIVE
   PENDING
   SUSPENDED
+}
+
+type Affiliate {
+  businessType: BusinessType!
+  contactMethod: ContactMethod
+  country: String!
+  createdAt: DateTime!
+  currentPlatform: CurrentPlatform!
+  id: ID!
+  phone: String!
+  referralSource: ReferralSource
+  status: AffiliateStatus!
+  userId: ID!
+}
+
+type AffiliateFraudReportRecord {
+  affiliateAvatarSlot: Int!
+  affiliateEmail: String!
+  affiliateId: String!
+  affiliateInitials: String!
+  affiliateName: String!
+  caseDate: String!
+  caseId: String!
+  flaggedClicks: Int!
+  fraudPercent: Int!
+  offerName: String!
+  reason: String!
+  risk: String!
+  status: String!
+}
+
+type AffiliatePostbackLogRecord {
+  affiliateId: String!
+  attempts: Int!
+  endpointUrl: String!
+  httpStatus: Int!
+  postbackDate: String!
+  postbackId: String!
+  postbackTime: String!
+  successful: Boolean!
+  transactionId: String!
+}
+
+type AffiliateReportRecord {
+  affiliateId: String!
+  avatarSlot: Int!
+  clicks: Int!
+  conversions: Int!
+  countryCode: String!
+  countryName: String!
+  email: String!
+  initials: String!
+  name: String!
+  revenue: Float!
+  status: String!
+}
+
+"""Application/account status shown on the affiliates table."""
+enum AffiliateStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+input ApproveOfferInput {
+  approved: Boolean! = true
+  offerId: String!
 }
 
 type AuthPayload {
@@ -115,6 +209,18 @@ type CampaignPayout {
   platform: String
 }
 
+type CampaignPerformance {
+  clicks: Float!
+  conversions: Float!
+  cr: String!
+  epc: String!
+  id: String!
+  name: String!
+  payout: String!
+  revenue: String!
+  status: String!
+}
+
 type CampaignRemark {
   campaignId: ID!
   createdAt: DateTime!
@@ -143,12 +249,38 @@ enum CapType {
   WEEKLY
 }
 
+type ClickLogRecord {
+  affiliateId: String!
+  browser: String!
+  clickDate: String!
+  clickId: String!
+  clickTime: String!
+  converted: Boolean!
+  countryCode: String!
+  countryName: String!
+  device: String!
+  ip: String!
+  offerName: String!
+}
+
 """The applicant's preferred contact channel."""
 enum ContactMethod {
   EMAIL
   SKYPE
   TELEGRAM
   WHATSAPP
+}
+
+type ConversionReportRecord {
+  affiliateId: String!
+  countryCode: String!
+  countryName: String!
+  offerName: String!
+  payout: Float!
+  status: String!
+  transactionDate: String!
+  transactionId: String!
+  transactionTime: String!
 }
 
 """How the advertiser is charged for conversions."""
@@ -219,6 +351,37 @@ input CreateCampaignRemarkInput {
   text: String!
 }
 
+input CreateNotificationInput {
+  broadcast: Boolean! = false
+  message: String!
+  title: String!
+  type: String! = "info"
+}
+
+input CreateOfferInput {
+  access: OfferAccess! = PUBLIC
+  advertiserId: String!
+  category: String!
+  description: String
+  icon: String
+  name: String!
+  networkOfferId: String
+  previewLink: String!
+  status: OfferStatus! = PENDING
+  trackingLink: String!
+  trafficSources: [String!]
+  type: OfferType!
+}
+
+input CreatePlanInput {
+  description: String
+  features: String!
+  interval: String! = "MONTH"
+  name: String!
+  price: String!
+  stripePriceId: String
+}
+
 """ISO-4217 currency code used for payouts and totals."""
 enum Currency {
   EUR
@@ -236,17 +399,63 @@ enum CurrentPlatform {
   OTHER
 }
 
+input DateRangeInput {
+  from: String
+  preset: DateRangePreset
+  to: String
+}
+
+"""
+Preset date ranges for report queries. CUSTOM uses the explicit from/to bounds.
+"""
+enum DateRangePreset {
+  CUSTOM
+  LAST_MONTH
+  MONTH
+  SEVEN_DAYS
+  TODAY
+  YESTERDAY
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
 
+type Invoice {
+  amountDue: String!
+  amountPaid: String!
+  createdAt: DateTime!
+  currency: String!
+  dueDate: DateTime
+  hostedInvoiceUrl: String
+  id: String!
+  invoicePdf: String
+  number: String
+  paidAt: DateTime
+  status: String!
+  stripeInvoiceId: String
+  subscriptionId: String
+  userId: String!
+}
+
+input MarkNotificationReadInput {
+  notificationId: String!
+}
+
 type Mutation {
+  approveOffer(input: ApproveOfferInput!): Offer!
   createAdvertiser(input: CreateAdvertiserInput!): Advertiser!
   createCampaign(input: CreateCampaignInput!): Campaign!
+  createNotification(input: CreateNotificationInput!): Notification!
+  createOffer(input: CreateOfferInput!): Offer!
+  createPlan(input: CreatePlanInput!): Plan!
+  deleteSetting(key: String!): Boolean!
 
   """Revoke the current session and clear auth cookies."""
   logout: Boolean!
+  markAllNotificationsRead: Float!
+  markNotificationRead(input: MarkNotificationReadInput!): NotificationRead!
 
   """Rotate the refresh session (reads the httpOnly refresh cookie)."""
   refreshSession: AuthPayload!
@@ -259,6 +468,109 @@ type Mutation {
   toggleCampaignStatus(id: ID!): Campaign!
   updateAdvertiser(input: UpdateAdvertiserInput!): Advertiser!
   updateCampaign(input: UpdateCampaignInput!): Campaign!
+  updateOffer(id: String!, input: UpdateOfferInput!): Offer!
+  updatePlan(id: String!, input: UpdatePlanInput!): Plan!
+  upsertSetting(input: UpsertSettingInput!): Setting!
+}
+
+type Notification {
+  broadcast: Boolean!
+  createdAt: DateTime!
+  id: String!
+  message: String!
+  title: String!
+  type: String!
+}
+
+type NotificationCount {
+  total: Int!
+  unread: Int!
+}
+
+type NotificationRead {
+  id: String!
+  notificationId: String!
+  readAt: DateTime
+  userId: String!
+}
+
+type Offer {
+  access: OfferAccess!
+  advertiserId: String!
+  category: String!
+  createdAt: DateTime!
+  description: String
+  endDate: DateTime
+  icon: String
+  id: String!
+  name: String!
+  networkOfferId: String
+  previewLink: String!
+  slug: String
+  startDate: DateTime
+  status: OfferStatus!
+  trackingLink: String!
+  trafficSources: [String!]!
+  type: OfferType!
+  updatedAt: DateTime!
+}
+
+"""Whether an offer is public or private."""
+enum OfferAccess {
+  PRIVATE
+  PUBLIC
+}
+
+type OfferReportRecord {
+  clicks: Int!
+  company: String!
+  conversions: Int!
+  offerId: String!
+  offerName: String!
+  payout: Float!
+  revenue: Float!
+  status: String!
+  type: String!
+}
+
+"""Offer lifecycle status."""
+enum OfferStatus {
+  ACTIVE
+  APPROVED
+  EXPIRED
+  PAUSED
+  PENDING
+  REJECTED
+}
+
+"""Type of offer (CPA, CPL, CPS, CPI)."""
+enum OfferType {
+  CPA
+  CPI
+  CPL
+  CPS
+}
+
+type OverviewStats {
+  conversionRate: String!
+  conversions: Int!
+  pendingPayout: String!
+  totalClicks: Int!
+  totalSpent: String!
+  uniqueClicks: Int!
+}
+
+type PaymentMethod {
+  brand: String
+  createdAt: DateTime!
+  expiryMonth: DateTime
+  expiryYear: DateTime
+  id: String!
+  isDefault: Boolean!
+  last4: String
+  stripePaymentMethodId: String!
+  type: String!
+  userId: String!
 }
 
 """How a payout is computed for a single conversion."""
@@ -270,16 +582,68 @@ enum PayoutType {
   REVSHARE
 }
 
+type PerformancePoint {
+  clicks: Float!
+  conversions: Float!
+  date: String!
+  payout: String!
+  revenue: String!
+}
+
+type Plan {
+  createdAt: DateTime!
+  description: String
+  features: String!
+  id: String!
+  interval: PlanInterval!
+  isActive: Boolean!
+  name: String!
+  price: String!
+  stripePriceId: String
+  updatedAt: DateTime!
+}
+
+"""Billing interval for a plan."""
+enum PlanInterval {
+  MONTH
+  YEAR
+}
+
 type Query {
   advertiser(id: ID!): Advertiser!
+  advertiserPostbackLogs(cursor: String, limit: Float, range: DateRangeInput): [AdvertiserPostbackLogRecord!]!
+  advertiserReports(cursor: String, limit: Float, range: DateRangeInput): [AdvertiserReportRecord!]!
   advertisers(filter: AdvertiserFilterInput, skip: Int! = 0, take: Int! = 20): [Advertiser!]!
   advertisersCount(filter: AdvertiserFilterInput): Int!
+  affiliate(id: String!): Affiliate
+  affiliatePostbackLogs(cursor: String, limit: Float, range: DateRangeInput): [AffiliatePostbackLogRecord!]!
+  affiliateReports(cursor: String, limit: Float, range: DateRangeInput): [AffiliateReportRecord!]!
+  affiliates: [Affiliate!]!
   campaign(id: ID!): Campaign!
   campaignOptions: CampaignOptions!
   campaigns(filter: CampaignFilterInput, my: Boolean, skip: Int! = 0, take: Int! = 20): [Campaign!]!
   campaignsCount(filter: CampaignFilterInput, my: Boolean): Int!
+  clickLogReports(cursor: String, limit: Float, range: DateRangeInput): [ClickLogRecord!]!
+  conversionReports(cursor: String, limit: Float, range: DateRangeInput): [ConversionReportRecord!]!
+  fraudReports(cursor: String, limit: Float, range: DateRangeInput): [AffiliateFraudReportRecord!]!
   me: User!
   myAdvertiserProfile(id: ID): Advertiser!
+  myAffiliateProfile: Affiliate
+  myInvoices: [Invoice!]!
+  myPaymentMethods: [PaymentMethod!]!
+  mySubscription: Subscription
+  notificationCount: NotificationCount!
+  notifications(limit: Float, unreadOnly: Boolean): [Notification!]!
+  offer(id: String!): Offer
+  offerReports(cursor: String, limit: Float, range: DateRangeInput): [OfferReportRecord!]!
+  offers: [Offer!]!
+  overviewStats(advertiserId: String, range: DateRangeInput): OverviewStats!
+  performanceSeries(advertiserId: String, range: DateRangeInput): [PerformancePoint!]!
+  plan(id: String!): Plan
+  plans: [Plan!]!
+  setting(key: String!): Setting
+  settings(keys: [String!]): [Setting!]!
+  topCampaigns(advertiserId: String, limit: Int, range: DateRangeInput): [CampaignPerformance!]!
 }
 
 """How the applicant heard about the network."""
@@ -309,9 +673,43 @@ type SelectOption {
   value: String!
 }
 
+type Setting {
+  createdAt: DateTime!
+  id: String!
+  key: String!
+  updatedAt: DateTime!
+  value: String!
+}
+
 input SignInInput {
   email: String!
   password: String!
+}
+
+type Subscription {
+  cancelAtPeriodEnd: Boolean!
+  canceledAt: DateTime
+  createdAt: DateTime!
+  currentPeriodEnd: DateTime!
+  currentPeriodStart: DateTime!
+  id: String!
+  plan: Plan!
+  planId: String!
+  status: SubscriptionStatus!
+  stripeCustomerId: String
+  stripeSubscriptionId: String
+  updatedAt: DateTime!
+  userId: String!
+}
+
+"""Current status of a subscription."""
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  TRIALING
 }
 
 input UpdateAdvertiserInput {
@@ -355,6 +753,35 @@ input UpdateCampaignInput {
   title: String
   trackingLink: String
   trafficAllowed: [String!]
+}
+
+input UpdateOfferInput {
+  access: OfferAccess
+  category: String
+  description: String
+  icon: String
+  name: String
+  networkOfferId: String
+  previewLink: String
+  status: OfferStatus
+  trackingLink: String
+  trafficSources: [String!]
+  type: OfferType
+}
+
+input UpdatePlanInput {
+  description: String
+  features: String
+  interval: String
+  isActive: Boolean
+  name: String
+  price: String
+  stripePriceId: String
+}
+
+input UpsertSettingInput {
+  key: String!
+  value: String!
 }
 
 type User {
