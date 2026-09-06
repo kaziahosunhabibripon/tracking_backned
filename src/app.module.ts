@@ -47,12 +47,19 @@ import { OffersModule } from './modules/offers/offers.module';
 import { AffiliateGroupsModule } from './modules/affiliate-groups/affiliate-groups.module';
 import { AffiliatePaymentsModule } from './modules/affiliate-payments/affiliate-payments.module';
 import { ReferralProgramsModule } from './modules/referral-programs/referral-programs.module';
+import { FaqsModule } from './modules/faqs/faqs.module';
+import { SignupQuestionsModule } from './modules/signup-questions/signup-questions.module';
+import { LoginLogsModule } from './modules/login-logs/login-logs.module';
+import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
+import { RolePermissionsModule } from './modules/role-permissions/role-permissions.module';
 import './modules/affiliates/enums/affiliate.enums';
 import './modules/advertisers/enums/advertiser.enums';
 import './modules/campaigns/enums/campaign.enums';
 import './modules/reports/enums/reports.enums';
 import './modules/billing/enums/billing.enums';
 import './modules/offers/enums/offer.enums';
+import './modules/affiliate-payments/enums/affiliate-payment.enums';
+import './modules/support-tickets/enums/support-ticket.enums';
 
 // Populate process.env from the env file BEFORE module metadata evaluates —
 // anything reading process.env at module scope (e.g. a module gating a queue
@@ -153,6 +160,11 @@ loadAppEnv();
     AffiliateGroupsModule,
     AffiliatePaymentsModule,
     ReferralProgramsModule,
+    FaqsModule,
+    SignupQuestionsModule,
+    LoginLogsModule,
+    SupportTicketsModule,
+    RolePermissionsModule,
     AuthModule,
   ],
   controllers: [AppController],

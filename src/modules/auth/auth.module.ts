@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AffiliatesModule } from '../affiliates/affiliates.module';
+import { LoginLogsModule } from '../login-logs/login-logs.module';
 import { UsersModule } from '../users/users.module';
 import { AuthResolver } from './auth.resolver';
 import { AuthService } from './auth.service';
@@ -15,6 +16,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   imports: [
     UsersModule,
     AffiliatesModule,
+    LoginLogsModule,
     PassportModule.register({
       defaultStrategy: 'jwt',
       session: false,

@@ -5,6 +5,7 @@ import { User as PrismaUser } from '@prisma/client';
 import { UnauthorizedException } from '../../common/errors/app.exception';
 import { durationToSeconds } from '../../common/utils/duration.util';
 import { PrismaService } from '../../database/prisma.service';
+import { LoginLogsService } from '../login-logs/login-logs.service';
 import { UsersService } from '../users/users.service';
 import { RegisterAffiliateInput } from './dto/register-affiliate.input';
 import { SignInInput } from './dto/sign-in.input';
@@ -19,6 +20,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly refreshTokenService: RefreshTokenService,
+    private readonly loginLogsService: LoginLogsService,
   ) {}
 
   /**
@@ -63,13 +65,40 @@ export class AuthService {
     return this.createAuthPayload(user, meta);
   }
 
+  /**
+   * `LoginLog.userId` is required, so a failed attempt can only be logged
+   * when the email matched a real account (an unknown email can't be
+   * attributed to a user id — and doing a lookup to log it would defeat
+   * `validateLocalCredentials`'s same-error-either-way anti-enumeration
+   * design anyway).
+   */
   async signIn(input: SignInInput, meta?: SessionMeta): Promise<AuthPayload> {
-    const user = await this.usersService.validateLocalCredentials(
-      input.email,
-      input.password,
-    );
-    await this.usersService.touchLastLogin(user.id);
-    return this.createAuthPayload(user, meta);
+    try {
+      const user = await this.usersService.validateLocalCredentials(
+        input.email,
+        input.password,
+      );
+      await this.usersService.touchLastLogin(user.id);
+      await this.loginLogsService.record({
+        userId: user.id,
+        ip: meta?.ipAddress ?? 'unknown',
+        userAgent: meta?.userAgent ?? undefined,
+        success: true,
+      });
+      return this.createAuthPayload(user, meta);
+    } catch (err) {
+      const existing = await this.usersService.findByEmail(input.email);
+      if (existing) {
+        await this.loginLogsService.record({
+          userId: existing.id,
+          ip: meta?.ipAddress ?? 'unknown',
+          userAgent: meta?.userAgent ?? undefined,
+          success: false,
+          failureReason: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+      throw err;
+    }
   }
 
   /** Rotate the presented refresh token and mint a fresh session. */

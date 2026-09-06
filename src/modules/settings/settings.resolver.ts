@@ -12,6 +12,12 @@ export class SettingsResolver {
   constructor(private readonly settingsService: SettingsService) {}
 
   @UseGuards(GqlJwtAuthGuard)
+  @RolesExact(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.STAFF,
+  )
   @Query(() => [Setting])
   async settings(
     @Args('keys', { type: () => [String], nullable: true }) keys?: string[],
@@ -20,6 +26,12 @@ export class SettingsResolver {
   }
 
   @UseGuards(GqlJwtAuthGuard)
+  @RolesExact(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.STAFF,
+  )
   @Query(() => Setting, { nullable: true })
   async setting(@Args('key') key: string): Promise<Setting | null> {
     return this.settingsService.findByKey(key);

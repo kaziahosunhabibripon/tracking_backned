@@ -726,23 +726,23 @@ Headers: `X-Signature: <hmac-sha256(body, POSTBACK_SECRET)>`
 
 ### Phase 7 — Notifications, Settings, Billing (Stripe)
 
-- [ ] `notifications` (broadcast + per-user + mark-read + bell badge).
-- [ ] `settings/network`, `settings/system`, `settings/email`, `settings/preference`.
-- [ ] `faqs` + `signup-questions` (consumed by traking-web signup form).
-- [ ] `login-logs`, `support-tickets`, `roles-permissions`.
-- [ ] `billing/plans` (public — `traking-web/pricing`).
-- [ ] `billing/subscription` (current + change plan + cancel).
-- [ ] `billing/payment-methods` (list/add/delete/set-default).
-- [ ] `billing/invoices` (history).
-- [ ] `billing/webhook.controller.ts` — `POST /stripe/webhook` (REST, public, throttler-disabled, raw body).
-- [ ] Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_PATH`.
-- [ ] New dep: `stripe` (npm).
+- [x] `notifications` (broadcast + per-user + mark-read + bell badge).
+- [x] `settings/network`, `settings/system`, `settings/email`, `settings/preference`.
+- [x] `faqs` + `signup-questions` (consumed by traking-web signup form).
+- [x] `login-logs`, `support-tickets`, `roles-permissions`.
+- [x] `billing/plans` (public — `traking-web/pricing`).
+- [x] `billing/subscription` (current + change plan + cancel).
+- [x] `billing/payment-methods` (list/add/delete/set-default).
+- [x] `billing/invoices` (history).
+- [x] `billing/webhook.controller.ts` — `POST /stripe/webhook` (REST, public, throttler-disabled, raw body).
+- [x] Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_PATH`.
+- [x] New dep: `stripe` (npm).
 
 ### Phase 8 — Testing, optimization, ops
 
-- [ ] Unit tests per resolver (Jest, already configured).
-- [ ] Integration tests via `testcontainers/postgresql` (already in devDeps).
-- [ ] E2E flow: signup → login → create campaign → click `/r/:slug` → postback → see conversion in reports.
+- [x] Unit tests per resolver (Jest, already configured).
+- [x] Integration tests via `testcontainers/postgresql` (already in devDeps).
+- [x] E2E flow: signup → login → create campaign → click `/r/:slug` → postback → see conversion in reports.
 - [ ] Sentry smoke test.
 - [ ] Index audit (`Click(campaignId, createdAt)`, `Conversion(campaignId, status, createdAt)`).
 - [ ] Dockerfile + docker-compose for prod.
@@ -751,17 +751,17 @@ Headers: `X-Signature: <hmac-sha256(body, POSTBACK_SECRET)>`
 
 ## 8. Time estimate
 
-| Phase                                             | Description                                        | Estimate (single dev, 8h/day) |
-| ------------------------------------------------- | -------------------------------------------------- | ----------------------------- |
-| Phase 1 (Auth)                                    | ✅ already done                                    | —                             |
-| **Phase 2 (Advertiser + Campaign)**               | NEW models + GraphQL + file upload + CORS + seeder | **5–6 days**                  |
-| **Phase 3 (Tracking engine)**                     | REST redirect + postback + dedupe + cap + HMAC     | **4–5 days** ⭐               |
-| **Phase 4 (Reports)**                             | 9 report resolvers + DateRange + cursor            | **4–5 days**                  |
-| **Phase 5 (Affiliate expansion)**                 | groups + payments + referral + pending             | **3–4 days**                  |
-| **Phase 6 (Offers)**                              | CRUD + approval + CR-optimizer                     | **3–4 days**                  |
-| **Phase 7 (Notif + Settings + Billing + Stripe)** | mixed                                              | **5–6 days**                  |
-| **Phase 8 (Testing + ops)**                       | Jest + testcontainers + Docker                     | **3–4 days**                  |
-| **Total remaining**                               |                                                    | **28–34 days**                |
+| Phase                                             | Description                                    | Estimate (single dev, 8h/day) |
+| ------------------------------------------------- | ---------------------------------------------- | ----------------------------- |
+| Phase 1 (Auth)                                    | ✅ already done                                | —                             |
+| **Phase 2 (Advertiser + Campaign)**               | ✅ done                                        | —                             |
+| **Phase 3 (Tracking engine)**                     | ✅ done                                        | —                             |
+| **Phase 4 (Reports)**                             | ✅ done                                        | —                             |
+| **Phase 5 (Affiliate expansion)**                 | ✅ done                                        | —                             |
+| **Phase 6 (Offers)**                              | ✅ done                                        | —                             |
+| **Phase 7 (Notif + Settings + Billing + Stripe)** | ✅ done                                        | —                             |
+| **Phase 8 (Testing + ops)**                       | 🟡 partial (baseline + integration tests done) | **1–2 days**                  |
+| **Total remaining**                               |                                                | **2–3 days**                  |
 
 Conservative: 30 days at 8h/day.
 

@@ -1,6 +1,7 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { RolesExact } from '../../common/decorators/roles.decorator';
 import { GqlJwtAuthGuard } from '../../modules/auth/guards/gql-jwt-auth.guard';
 import { UserRole } from '@prisma/client';
@@ -18,13 +19,14 @@ import type { AuthenticatedUser } from '../../modules/auth/interfaces/authentica
 export class BillingResolver {
   constructor(private readonly billingService: BillingService) {}
 
-  @UseGuards(GqlJwtAuthGuard)
+  /** Public pricing page — must be reachable without a JWT. */
+  @Public()
   @Query(() => [Plan])
   async plans() {
     return this.billingService.findPlans();
   }
 
-  @UseGuards(GqlJwtAuthGuard)
+  @Public()
   @Query(() => Plan, { nullable: true })
   async plan(@Args('id') id: string) {
     return this.billingService.findPlan(id);

@@ -28,7 +28,7 @@ export class AffiliatesResolver {
   )
   @Query(() => Affiliate, { nullable: true })
   async affiliate(@Args('id', { type: () => String }) id: string) {
-    return this.affiliatesService.findByUserId(id);
+    return this.affiliatesService.findById(id);
   }
 
   @UseGuards(GqlJwtAuthGuard)

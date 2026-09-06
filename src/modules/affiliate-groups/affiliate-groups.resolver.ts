@@ -21,12 +21,24 @@ export class AffiliateGroupsResolver {
   ) {}
 
   @UseGuards(GqlJwtAuthGuard)
+  @RolesExact(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.STAFF,
+  )
   @Query(() => [AffiliateGroup])
   async affiliateGroups() {
     return this.affiliateGroupsService.findAll();
   }
 
   @UseGuards(GqlJwtAuthGuard)
+  @RolesExact(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.STAFF,
+  )
   @Query(() => AffiliateGroup, { nullable: true })
   async affiliateGroup(@Args('id') id: string) {
     return this.affiliateGroupsService.findOne(id);

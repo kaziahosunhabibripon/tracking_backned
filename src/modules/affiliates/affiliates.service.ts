@@ -40,6 +40,10 @@ export class AffiliatesService {
     return this.prisma.affiliate.findUnique({ where: { userId } });
   }
 
+  findById(id: string): Promise<PrismaAffiliate | null> {
+    return this.prisma.affiliate.findUnique({ where: { id } });
+  }
+
   findAll(): Promise<PrismaAffiliate[]> {
     return this.prisma.affiliate.findMany();
   }

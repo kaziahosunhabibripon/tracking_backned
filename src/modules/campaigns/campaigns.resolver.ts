@@ -139,7 +139,7 @@ export class CampaignsResolver {
     return this.campaignsService.toDto(created);
   }
 
-  @RolesExact(UserRole.ADVERTISER)
+  @RolesExact(UserRole.ADVERTISER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @Mutation(() => Campaign, { name: 'updateCampaign' })
   async update(
     @CurrentUser() user: AuthenticatedUser,
@@ -152,7 +152,7 @@ export class CampaignsResolver {
     return this.campaignsService.toDto(updated);
   }
 
-  @RolesExact(UserRole.ADVERTISER)
+  @RolesExact(UserRole.ADVERTISER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @Mutation(() => Campaign, { name: 'toggleCampaignStatus' })
   async toggle(
     @CurrentUser() user: AuthenticatedUser,
@@ -165,7 +165,7 @@ export class CampaignsResolver {
     return this.campaignsService.toDto(updated);
   }
 
-  @RolesExact(UserRole.ADVERTISER)
+  @RolesExact(UserRole.ADVERTISER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @Mutation(() => Campaign, { name: 'softDeleteCampaign' })
   async softDelete(
     @CurrentUser() user: AuthenticatedUser,

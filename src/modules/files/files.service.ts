@@ -8,13 +8,15 @@ import { promises as fs } from 'fs';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
 
+// SVG is intentionally excluded: it's servable as text/html-adjacent content
+// and can embed <script>/event-handler payloads. GET /files/:name is public
+// and unauthenticated, so an uploaded SVG would be a stored-XSS vector.
 const ALLOWED_MIME = new Set([
   'image/png',
   'image/jpeg',
   'image/jpg',
   'image/webp',
   'image/gif',
-  'image/svg+xml',
 ]);
 const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
 
@@ -93,7 +95,6 @@ export class FilesService {
       'image/jpg': '.jpg',
       'image/webp': '.webp',
       'image/gif': '.gif',
-      'image/svg+xml': '.svg',
     };
     return guess[mime] ?? '.bin';
   }

@@ -1,5 +1,6 @@
 import { Field, InputType } from '@nestjs/graphql';
 import { Prisma } from '@prisma/client';
+import GraphQLJSON from 'graphql-type-json';
 
 @InputType()
 export class CreatePlanInput {
@@ -18,7 +19,7 @@ export class CreatePlanInput {
   @Field(() => String, { nullable: true })
   stripePriceId?: string;
 
-  @Field(() => String)
+  @Field(() => GraphQLJSON)
   features!: Prisma.InputJsonValue;
 }
 
@@ -39,7 +40,7 @@ export class UpdatePlanInput {
   @Field(() => String, { nullable: true })
   stripePriceId?: string;
 
-  @Field(() => String, { nullable: true })
+  @Field(() => GraphQLJSON, { nullable: true })
   features?: Prisma.InputJsonValue;
 
   @Field({ nullable: true })

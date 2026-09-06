@@ -1,5 +1,6 @@
 import { Field, ObjectType } from '@nestjs/graphql';
 import { PlanInterval, SubscriptionStatus } from '@prisma/client';
+import GraphQLJSON from 'graphql-type-json';
 
 @ObjectType()
 export class Plan {
@@ -21,8 +22,8 @@ export class Plan {
   @Field(() => String, { nullable: true })
   stripePriceId?: string;
 
-  @Field(() => String)
-  features!: any;
+  @Field(() => GraphQLJSON)
+  features!: unknown;
 
   @Field()
   isActive!: boolean;

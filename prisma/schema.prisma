@@ -711,3 +711,85 @@ model Invoice {
   @@index([userId])
   @@index([stripeInvoiceId])
 }
+
+model Faq {
+  id          String   @id @default(uuid()) @db.Uuid
+  question    String   @db.Text
+  answer      String   @db.Text
+  category    String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([sortOrder])
+}
+
+model SignupQuestion {
+  id          String   @id @default(uuid()) @db.Uuid
+  label       String   @db.Text
+  type        String   @default("text")
+  options     Json?
+  required    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model LoginLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  ip        String
+  userAgent String?
+  success   Boolean
+  failureReason String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model SupportTicket {
+  id          String             @id @default(uuid()) @db.Uuid
+  userId      String             @db.Uuid
+  subject     String
+  description String             @db.Text
+  priority    TicketPriority     @default(MEDIUM)
+  status      TicketStatus       @default(OPEN)
+  assigneeId  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model RolePermission {
+  id         String   @id @default(uuid()) @db.Uuid
+  role       UserRole
+  permission String
+  createdAt  DateTime @default(now())
+
+  @@unique([role, permission])
+  @@index([role])
+}

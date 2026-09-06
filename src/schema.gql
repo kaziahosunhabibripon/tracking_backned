@@ -2,6 +2,12 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AddGroupMemberInput {
+  affiliateId: String!
+  groupId: String!
+  role: String! = "MEMBER"
+}
+
 type Advertiser {
   commissionRate: String
   companyName: String!
@@ -89,6 +95,36 @@ type AffiliateFraudReportRecord {
   reason: String!
   risk: String!
   status: String!
+}
+
+type AffiliateGroup {
+  budget: String
+  createdAt: DateTime!
+  description: String
+  id: String!
+  name: String!
+  tags: [String!]!
+  updatedAt: DateTime!
+}
+
+type AffiliateGroupMember {
+  affiliateId: String!
+  groupId: String!
+  id: String!
+  joinedAt: DateTime!
+  role: String!
+}
+
+type AffiliatePayment {
+  affiliateId: String!
+  amount: String!
+  createdAt: DateTime!
+  currency: String!
+  id: String!
+  paidAt: DateTime
+  paymentMethod: String!
+  status: String!
+  transactionId: String
 }
 
 type AffiliatePostbackLogRecord {
@@ -309,6 +345,21 @@ input CreateAdvertiserInput {
   status: AdvertiserStatus
 }
 
+input CreateAffiliateGroupInput {
+  budget: String
+  description: String
+  name: String!
+  tags: [String!]
+}
+
+input CreateAffiliatePaymentInput {
+  affiliateId: String!
+  amount: String!
+  currency: String! = "USD"
+  paymentMethod: String!
+  transactionId: String
+}
+
 input CreateCampaignCapInput {
   capLimit: Int!
   capType: CapType!
@@ -351,6 +402,14 @@ input CreateCampaignRemarkInput {
   text: String!
 }
 
+input CreateFaqInput {
+  answer: String!
+  category: String
+  isPublished: Boolean! = true
+  question: String!
+  sortOrder: Float! = 0
+}
+
 input CreateNotificationInput {
   broadcast: Boolean! = false
   message: String!
@@ -373,13 +432,46 @@ input CreateOfferInput {
   type: OfferType!
 }
 
+input CreatePaymentTermInput {
+  affiliateId: String!
+  currency: String! = "USD"
+  minPayout: String!
+  paymentMethod: String!
+}
+
 input CreatePlanInput {
   description: String
-  features: String!
+  features: JSON!
   interval: String! = "MONTH"
   name: String!
   price: String!
   stripePriceId: String
+}
+
+input CreateReferralInput {
+  code: String!
+  referredId: String!
+  referrerId: String!
+}
+
+input CreateRolePermissionInput {
+  permission: String!
+  role: UserRole!
+}
+
+input CreateSignupQuestionInput {
+  isActive: Boolean! = true
+  label: String!
+  options: JSON
+  required: Boolean! = false
+  sortOrder: Float! = 0
+  type: String! = "text"
+}
+
+input CreateSupportTicketInput {
+  description: String!
+  priority: TicketPriority! = MEDIUM
+  subject: String!
 }
 
 """ISO-4217 currency code used for payouts and totals."""
@@ -422,6 +514,17 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type Faq {
+  answer: String!
+  category: String
+  createdAt: DateTime!
+  id: String!
+  isPublished: Boolean!
+  question: String!
+  sortOrder: Float!
+  updatedAt: DateTime!
+}
+
 type Invoice {
   amountDue: String!
   amountPaid: String!
@@ -439,18 +542,45 @@ type Invoice {
   userId: String!
 }
 
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+type LoginLog {
+  createdAt: DateTime!
+  failureReason: String
+  id: String!
+  ip: String!
+  success: Boolean!
+  userAgent: String
+  userId: String!
+}
+
 input MarkNotificationReadInput {
   notificationId: String!
 }
 
 type Mutation {
+  addGroupMember(input: AddGroupMemberInput!): AffiliateGroupMember!
   approveOffer(input: ApproveOfferInput!): Offer!
   createAdvertiser(input: CreateAdvertiserInput!): Advertiser!
+  createAffiliateGroup(input: CreateAffiliateGroupInput!): AffiliateGroup!
+  createAffiliatePayment(input: CreateAffiliatePaymentInput!): AffiliatePayment!
   createCampaign(input: CreateCampaignInput!): Campaign!
+  createFaq(input: CreateFaqInput!): Faq!
   createNotification(input: CreateNotificationInput!): Notification!
   createOffer(input: CreateOfferInput!): Offer!
+  createPaymentTerm(input: CreatePaymentTermInput!): PaymentTerm!
   createPlan(input: CreatePlanInput!): Plan!
+  createReferral(input: CreateReferralInput!): Referral!
+  createRolePermission(input: CreateRolePermissionInput!): RolePermission!
+  createSignupQuestion(input: CreateSignupQuestionInput!): SignupQuestion!
+  createSupportTicket(input: CreateSupportTicketInput!): SupportTicket!
+  deleteFaq(id: String!): Boolean!
+  deleteRolePermission(id: String!): Boolean!
   deleteSetting(key: String!): Boolean!
+  deleteSignupQuestion(id: String!): Boolean!
 
   """Revoke the current session and clear auth cookies."""
   logout: Boolean!
@@ -462,14 +592,21 @@ type Mutation {
 
   """Affiliate self-registration ("Apply Now" on /sign-up)."""
   registerAffiliate(input: RegisterAffiliateInput!): AuthPayload!
+  removeGroupMember(affiliateId: String!, groupId: String!): Boolean!
   signIn(input: SignInInput!): AuthPayload!
   softDeleteAdvertiser(id: ID!): Advertiser!
   softDeleteCampaign(id: ID!): Campaign!
   toggleCampaignStatus(id: ID!): Campaign!
   updateAdvertiser(input: UpdateAdvertiserInput!): Advertiser!
+  updateAffiliateGroup(id: String!, input: UpdateAffiliateGroupInput!): AffiliateGroup!
   updateCampaign(input: UpdateCampaignInput!): Campaign!
+  updateFaq(id: String!, input: UpdateFaqInput!): Faq!
   updateOffer(id: String!, input: UpdateOfferInput!): Offer!
+  updatePaymentStatus(input: UpdatePaymentStatusInput!): AffiliatePayment!
+  updatePaymentTerm(id: String!, input: UpdatePaymentTermInput!): PaymentTerm!
   updatePlan(id: String!, input: UpdatePlanInput!): Plan!
+  updateSignupQuestion(id: String!, input: UpdateSignupQuestionInput!): SignupQuestion!
+  updateSupportTicket(id: String!, input: UpdateSupportTicketInput!): SupportTicket!
   upsertSetting(input: UpsertSettingInput!): Setting!
 }
 
@@ -573,6 +710,24 @@ type PaymentMethod {
   userId: String!
 }
 
+"""Payment status for affiliate payments."""
+enum PaymentStatus {
+  FAILED
+  PAID
+  PENDING
+  PROCESSING
+}
+
+type PaymentTerm {
+  affiliateId: String!
+  createdAt: DateTime!
+  currency: String!
+  id: String!
+  minPayout: String!
+  paymentMethod: String!
+  updatedAt: DateTime!
+}
+
 """How a payout is computed for a single conversion."""
 enum PayoutType {
   CPA
@@ -593,7 +748,7 @@ type PerformancePoint {
 type Plan {
   createdAt: DateTime!
   description: String
-  features: String!
+  features: JSON!
   id: String!
   interval: PlanInterval!
   isActive: Boolean!
@@ -616,6 +771,8 @@ type Query {
   advertisers(filter: AdvertiserFilterInput, skip: Int! = 0, take: Int! = 20): [Advertiser!]!
   advertisersCount(filter: AdvertiserFilterInput): Int!
   affiliate(id: String!): Affiliate
+  affiliateGroup(id: String!): AffiliateGroup
+  affiliateGroups: [AffiliateGroup!]!
   affiliatePostbackLogs(cursor: String, limit: Float, range: DateRangeInput): [AffiliatePostbackLogRecord!]!
   affiliateReports(cursor: String, limit: Float, range: DateRangeInput): [AffiliateReportRecord!]!
   affiliates: [Affiliate!]!
@@ -625,25 +782,52 @@ type Query {
   campaignsCount(filter: CampaignFilterInput, my: Boolean): Int!
   clickLogReports(cursor: String, limit: Float, range: DateRangeInput): [ClickLogRecord!]!
   conversionReports(cursor: String, limit: Float, range: DateRangeInput): [ConversionReportRecord!]!
+  faq(id: String!): Faq
+  faqs(publishedOnly: Boolean): [Faq!]!
   fraudReports(cursor: String, limit: Float, range: DateRangeInput): [AffiliateFraudReportRecord!]!
+  loginLogs(limit: Float): [LoginLog!]!
   me: User!
   myAdvertiserProfile(id: ID): Advertiser!
   myAffiliateProfile: Affiliate
   myInvoices: [Invoice!]!
+  myLoginLogs(limit: Float): [LoginLog!]!
   myPaymentMethods: [PaymentMethod!]!
+  myReferralStats: ReferralStats!
+  myReferrals: [Referral!]!
   mySubscription: Subscription
+  mySupportTickets: [SupportTicket!]!
   notificationCount: NotificationCount!
   notifications(limit: Float, unreadOnly: Boolean): [Notification!]!
   offer(id: String!): Offer
   offerReports(cursor: String, limit: Float, range: DateRangeInput): [OfferReportRecord!]!
   offers: [Offer!]!
   overviewStats(advertiserId: String, range: DateRangeInput): OverviewStats!
+  paymentTerms(affiliateId: String): [PaymentTerm!]!
+  payments(affiliateId: String, status: String): [AffiliatePayment!]!
   performanceSeries(advertiserId: String, range: DateRangeInput): [PerformancePoint!]!
   plan(id: String!): Plan
   plans: [Plan!]!
+  referralByCode(input: ReferralCodeInput!): Referral
+  rolePermissions: [RolePermission!]!
+  rolePermissionsByRole(role: String!): [RolePermission!]!
   setting(key: String!): Setting
   settings(keys: [String!]): [Setting!]!
+  signupQuestion(id: String!): SignupQuestion
+  signupQuestions: [SignupQuestion!]!
+  supportTickets: [SupportTicket!]!
   topCampaigns(advertiserId: String, limit: Int, range: DateRangeInput): [CampaignPerformance!]!
+}
+
+type Referral {
+  code: String!
+  createdAt: DateTime!
+  id: String!
+  referredId: String!
+  referrerId: String!
+}
+
+input ReferralCodeInput {
+  code: String!
 }
 
 """How the applicant heard about the network."""
@@ -653,6 +837,12 @@ enum ReferralSource {
   REFERRAL
   SEARCH
   SOCIAL
+}
+
+type ReferralStats {
+  affiliateId: String!
+  referralCode: String!
+  referredCount: Int!
 }
 
 input RegisterAffiliateInput {
@@ -668,6 +858,13 @@ input RegisterAffiliateInput {
   referralSource: ReferralSource
 }
 
+type RolePermission {
+  createdAt: DateTime!
+  id: String!
+  permission: String!
+  role: UserRole!
+}
+
 type SelectOption {
   label: String!
   value: String!
@@ -678,12 +875,24 @@ type Setting {
   id: String!
   key: String!
   updatedAt: DateTime!
-  value: String!
+  value: JSON!
 }
 
 input SignInInput {
   email: String!
   password: String!
+}
+
+type SignupQuestion {
+  createdAt: DateTime!
+  id: String!
+  isActive: Boolean!
+  label: String!
+  options: JSON
+  required: Boolean!
+  sortOrder: Float!
+  type: String!
+  updatedAt: DateTime!
 }
 
 type Subscription {
@@ -712,6 +921,35 @@ enum SubscriptionStatus {
   TRIALING
 }
 
+type SupportTicket {
+  assigneeId: String
+  createdAt: DateTime!
+  description: String!
+  id: String!
+  priority: TicketPriority!
+  resolvedAt: DateTime
+  status: TicketStatus!
+  subject: String!
+  updatedAt: DateTime!
+  userId: String!
+}
+
+"""Priority level for support tickets."""
+enum TicketPriority {
+  HIGH
+  LOW
+  MEDIUM
+  URGENT
+}
+
+"""Current status of a support ticket."""
+enum TicketStatus {
+  CLOSED
+  IN_PROGRESS
+  OPEN
+  RESOLVED
+}
+
 input UpdateAdvertiserInput {
   commissionRate: String
   companyName: String
@@ -729,6 +967,13 @@ input UpdateAdvertiserInput {
   phone: String
   referralCode: String
   status: AdvertiserStatus
+}
+
+input UpdateAffiliateGroupInput {
+  budget: String
+  description: String
+  name: String
+  tags: [String!]
 }
 
 input UpdateCampaignInput {
@@ -755,6 +1000,14 @@ input UpdateCampaignInput {
   trafficAllowed: [String!]
 }
 
+input UpdateFaqInput {
+  answer: String
+  category: String
+  isPublished: Boolean
+  question: String
+  sortOrder: Float
+}
+
 input UpdateOfferInput {
   access: OfferAccess
   category: String
@@ -769,9 +1022,21 @@ input UpdateOfferInput {
   type: OfferType
 }
 
+input UpdatePaymentStatusInput {
+  paymentId: String!
+  status: PaymentStatus!
+  transactionId: String
+}
+
+input UpdatePaymentTermInput {
+  currency: String
+  minPayout: String
+  paymentMethod: String
+}
+
 input UpdatePlanInput {
   description: String
-  features: String
+  features: JSON
   interval: String
   isActive: Boolean
   name: String
@@ -779,9 +1044,24 @@ input UpdatePlanInput {
   stripePriceId: String
 }
 
+input UpdateSignupQuestionInput {
+  isActive: Boolean
+  label: String
+  options: JSON
+  required: Boolean
+  sortOrder: Float
+  type: String
+}
+
+input UpdateSupportTicketInput {
+  assigneeId: String
+  priority: TicketPriority
+  status: TicketStatus
+}
+
 input UpsertSettingInput {
   key: String!
-  value: String!
+  value: JSON!
 }
 
 type User {

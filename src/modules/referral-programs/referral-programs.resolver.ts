@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RolesExact } from '../../common/decorators/roles.decorator';
 import { GqlJwtAuthGuard } from '../../modules/auth/guards/gql-jwt-auth.guard';
 import { UserRole } from '@prisma/client';
+import { AffiliatesService } from '../affiliates/affiliates.service';
 import { ReferralProgramsService } from './referral-programs.service';
 import { Referral, ReferralStats } from './entities/referral.entity';
 import { CreateReferralInput, ReferralCodeInput } from './dto/referral.dto';
@@ -13,6 +14,7 @@ import type { AuthenticatedUser } from '../../modules/auth/interfaces/authentica
 export class ReferralProgramsResolver {
   constructor(
     private readonly referralProgramsService: ReferralProgramsService,
+    private readonly affiliatesService: AffiliatesService,
   ) {}
 
   @UseGuards(GqlJwtAuthGuard)
@@ -21,16 +23,27 @@ export class ReferralProgramsResolver {
     return this.referralProgramsService.findByCode(input.code);
   }
 
+  /**
+   * `user.sub` is the caller's `User.id` — `Referral.referrerId` is an
+   * `Affiliate.id`. Must resolve the caller's affiliate profile first or
+   * this always misses (see GAP-004).
+   */
   @UseGuards(GqlJwtAuthGuard)
   @Query(() => [Referral])
   async myReferrals(@CurrentUser() user: AuthenticatedUser) {
-    return this.referralProgramsService.findByReferrer(user.sub);
+    const own = await this.affiliatesService.findByUserId(user.sub);
+    if (!own) return [];
+    return this.referralProgramsService.findByReferrer(own.id);
   }
 
   @UseGuards(GqlJwtAuthGuard)
   @Query(() => ReferralStats)
   async myReferralStats(@CurrentUser() user: AuthenticatedUser) {
-    return this.referralProgramsService.stats(user.sub);
+    const own = await this.affiliatesService.findByUserId(user.sub);
+    if (!own) {
+      return { affiliateId: '', referralCode: '', referredCount: 0 };
+    }
+    return this.referralProgramsService.stats(own.id);
   }
 
   @UseGuards(GqlJwtAuthGuard)

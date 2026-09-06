@@ -53,6 +53,7 @@
     "dotenv": "^17.4.2",
     "geoip-lite": "^2.0.3",
     "graphql": "^16.14.2",
+    "graphql-type-json": "^0.3.2",
     "helmet": "^8.3.0",
     "nestjs-pino": "^4.6.1",
     "passport": "^0.7.0",
@@ -62,6 +63,7 @@
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "stripe": "^22.6.1",
     "ua-parser-js": "^2.0.10"
   },
   "devDependencies": {
@@ -120,6 +122,10 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleDirectories": [
+      "node_modules",
+      "src"
+    ]
   }
 }
