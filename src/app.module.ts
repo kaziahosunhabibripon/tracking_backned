@@ -47,6 +47,7 @@ import { OffersModule } from './modules/offers/offers.module';
 import { AffiliateGroupsModule } from './modules/affiliate-groups/affiliate-groups.module';
 import { AffiliatePaymentsModule } from './modules/affiliate-payments/affiliate-payments.module';
 import { ReferralProgramsModule } from './modules/referral-programs/referral-programs.module';
+import { CrOptimizerModule } from './modules/cr-optimizer/cr-optimizer.module';
 import { FaqsModule } from './modules/faqs/faqs.module';
 import { SignupQuestionsModule } from './modules/signup-questions/signup-questions.module';
 import { LoginLogsModule } from './modules/login-logs/login-logs.module';
@@ -123,7 +124,14 @@ loadAppEnv();
         return {
           driver: ApolloDriver,
           path: configService.get<string>('graphql.path') ?? '/graphql',
-          autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+          // Dev: write to src/schema.gql so the committed schema stays in
+          // sync for review/codegen. Production images ship dist/ only —
+          // there is no src/ directory, and the app runs as a non-root user
+          // with no write access to create one — so build the schema
+          // in-memory there instead (`true` = don't emit a file).
+          autoSchemaFile: isProduction
+            ? true
+            : join(process.cwd(), 'src/schema.gql'),
           sortSchema: true,
           // Hard-locked off in production regardless of GRAPHQL_INTROSPECTION —
           // an env file mistake must never expose the schema on a live API.
@@ -160,6 +168,7 @@ loadAppEnv();
     AffiliateGroupsModule,
     AffiliatePaymentsModule,
     ReferralProgramsModule,
+    CrOptimizerModule,
     FaqsModule,
     SignupQuestionsModule,
     LoginLogsModule,

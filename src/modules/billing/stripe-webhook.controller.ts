@@ -5,6 +5,7 @@ import {
   Logger,
   Headers,
   BadRequestException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '../../common/decorators/public.decorator';
@@ -18,11 +19,14 @@ import { PrismaService } from '../../database/prisma.service';
  * - Throttler disabled (Stripe retries on its own schedule).
  * - Raw body is captured for signature verification.
  * - Only idempotent, lightweight updates are applied here.
+ * - Billing is OPTIONAL, same as Sentry (see MonitoringModule): a missing
+ *   STRIPE_SECRET_KEY must never be a boot failure. Only requests to this
+ *   one endpoint are affected when it's unset.
  */
 @Controller()
 export class StripeWebhookController {
   private readonly logger = new Logger(StripeWebhookController.name);
-  private readonly stripe: Stripe;
+  private readonly stripe: Stripe | null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -30,7 +34,11 @@ export class StripeWebhookController {
   ) {
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!secretKey) {
-      throw new Error('STRIPE_SECRET_KEY is not set');
+      this.logger.warn(
+        'STRIPE_SECRET_KEY not set — /stripe/webhook will reject requests with 503.',
+      );
+      this.stripe = null;
+      return;
     }
     this.stripe = new Stripe(secretKey, {
       apiVersion: '2026-08-26.dahlia',
@@ -47,6 +55,10 @@ export class StripeWebhookController {
       body?: any;
     },
   ) {
+    if (!this.stripe) {
+      throw new ServiceUnavailableException('Billing is not configured.');
+    }
+
     const secret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
     if (!secret) {
       this.logger.error('STRIPE_WEBHOOK_SECRET is not configured');
@@ -97,6 +109,9 @@ export class StripeWebhookController {
   }
 
   private async handleCheckoutComplete(session: Stripe.Checkout.Session) {
+    // Only reachable via handleWebhook, which already guards on this.stripe
+    // — the check here is for TypeScript's narrowing, not a real runtime path.
+    if (!this.stripe) return;
     const subscriptionId = session.subscription as string | undefined;
     const customerId = session.customer as string | undefined;
     const userId = session.metadata?.userId;

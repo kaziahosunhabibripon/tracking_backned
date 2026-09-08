@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: tracking_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - '7000:7000'
+    environment:
+      # Required by src/config/env.validation.ts — the app throws at boot
+      # if any of these are missing, and no .env file exists inside the
+      # image to fall back on, so they must all be set here.
+      APP_NAME: Tracking API
+      PORT: 7000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      GRAPHQL_PATH: /graphql
+      JWT_EXPIRES_IN: 15m
+      THROTTLE_TTL: 60
+      THROTTLE_LIMIT: 120
+      DATABASE_URL: postgresql://postgres:root@postgres:5432/tracking_dev?connection_limit=10
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-in-production}
+      POSTBACK_SECRET: ${POSTBACK_SECRET:-change-me-in-production}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      UPLOAD_DIR: ./uploads
+      BIND_HOST: 0.0.0.0
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        node dist/main
+      "
+
+volumes:
+  postgres_data:
