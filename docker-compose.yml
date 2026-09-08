@@ -45,6 +45,12 @@ services:
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       UPLOAD_DIR: ./uploads
       BIND_HOST: 0.0.0.0
+      # Optional — DatabaseSeedService skips silently if either is unset.
+      # Pass ADMIN_EMAIL/ADMIN_PASSWORD (and SEED_SAMPLE=true for demo data)
+      # on the `docker compose up` command line to seed a first login.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SEED_SAMPLE: ${SEED_SAMPLE:-false}
     volumes:
       - ./uploads:/app/uploads
     depends_on:
