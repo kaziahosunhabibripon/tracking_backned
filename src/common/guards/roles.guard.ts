@@ -28,6 +28,13 @@ export const ROLE_RANK: Record<UserRole, number> = {
   [UserRole.SUPER_ADMIN]: 6,
 };
 
+/**
+ * Note: this guard decides everything from `@Roles`/`@RolesExact` metadata
+ * and `ROLE_RANK` below. It does not consult the `RolePermission` table —
+ * that CRUD (see the role-permissions module) is not yet wired in here
+ * (GAP-002 in GAP-ANALYSIS.md), so granting/revoking a row there has no
+ * effect on what any user can do.
+ */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}

@@ -17,6 +17,9 @@ export class Notification {
   @Field()
   broadcast!: boolean;
 
+  @Field(() => String, { nullable: true })
+  userId!: string | null;
+
   @Field(() => Date)
   createdAt!: Date;
 }

@@ -326,6 +326,17 @@ enum CostModel {
   REVSHARE
 }
 
+type CrExperiment {
+  createdAt: DateTime!
+  description: String
+  id: String!
+  metadata: JSON
+  name: String!
+  offerId: String!
+  status: String!
+  updatedAt: DateTime!
+}
+
 input CreateAdvertiserInput {
   commissionRate: String
   companyName: String!
@@ -401,6 +412,14 @@ input CreateCampaignRemarkInput {
   text: String!
 }
 
+input CreateCrExperimentInput {
+  description: String
+  metadata: JSON
+  name: String!
+  offerId: String!
+  status: String! = "ACTIVE"
+}
+
 input CreateFaqInput {
   answer: String!
   category: String
@@ -414,6 +433,7 @@ input CreateNotificationInput {
   message: String!
   title: String!
   type: String! = "info"
+  userId: String
 }
 
 input CreateOfferInput {
@@ -567,16 +587,26 @@ type Mutation {
   createAffiliateGroup(input: CreateAffiliateGroupInput!): AffiliateGroup!
   createAffiliatePayment(input: CreateAffiliatePaymentInput!): AffiliatePayment!
   createCampaign(input: CreateCampaignInput!): Campaign!
+  createCrExperiment(input: CreateCrExperimentInput!): CrExperiment!
   createFaq(input: CreateFaqInput!): Faq!
   createNotification(input: CreateNotificationInput!): Notification!
   createOffer(input: CreateOfferInput!): Offer!
   createPaymentTerm(input: CreatePaymentTermInput!): PaymentTerm!
   createPlan(input: CreatePlanInput!): Plan!
   createReferral(input: CreateReferralInput!): Referral!
+
+  """
+  Records a permission row only — RolesGuard does not read it yet, so this has no effect on authorization.
+  """
   createRolePermission(input: CreateRolePermissionInput!): RolePermission!
   createSignupQuestion(input: CreateSignupQuestionInput!): SignupQuestion!
   createSupportTicket(input: CreateSupportTicketInput!): SupportTicket!
+  deleteCrExperiment(id: String!): Boolean!
   deleteFaq(id: String!): Boolean!
+
+  """
+  Deletes a permission row only — RolesGuard does not read it yet, so this has no effect on authorization.
+  """
   deleteRolePermission(id: String!): Boolean!
   deleteSetting(key: String!): Boolean!
   deleteSignupQuestion(id: String!): Boolean!
@@ -599,6 +629,7 @@ type Mutation {
   updateAdvertiser(input: UpdateAdvertiserInput!): Advertiser!
   updateAffiliateGroup(id: String!, input: UpdateAffiliateGroupInput!): AffiliateGroup!
   updateCampaign(input: UpdateCampaignInput!): Campaign!
+  updateCrExperiment(id: String!, input: UpdateCrExperimentInput!): CrExperiment!
   updateFaq(id: String!, input: UpdateFaqInput!): Faq!
   updateOffer(id: String!, input: UpdateOfferInput!): Offer!
   updatePaymentStatus(input: UpdatePaymentStatusInput!): AffiliatePayment!
@@ -616,6 +647,7 @@ type Notification {
   message: String!
   title: String!
   type: String!
+  userId: String
 }
 
 type NotificationCount {
@@ -781,6 +813,8 @@ type Query {
   campaignsCount(filter: CampaignFilterInput, my: Boolean): Int!
   clickLogReports(cursor: String, limit: Float, range: DateRangeInput): [ClickLogRecord!]!
   conversionReports(cursor: String, limit: Float, range: DateRangeInput): [ConversionReportRecord!]!
+  crExperiment(id: String!): CrExperiment!
+  crExperiments(offerId: String!): [CrExperiment!]!
   faq(id: String!): Faq!
   faqs(publishedOnly: Boolean): [Faq!]!
   fraudReports(cursor: String, limit: Float, range: DateRangeInput): [AffiliateFraudReportRecord!]!
@@ -807,7 +841,11 @@ type Query {
   plan(id: String!): Plan
   plans: [Plan!]!
   referralByCode(input: ReferralCodeInput!): Referral
+
+  """Not yet enforced anywhere — see RolePermission entity description."""
   rolePermissions: [RolePermission!]!
+
+  """Not yet enforced anywhere — see RolePermission entity description."""
   rolePermissionsByRole(role: String!): [RolePermission!]!
   setting(key: String!): Setting
   settings(keys: [String!]): [Setting!]!
@@ -857,6 +895,9 @@ input RegisterAffiliateInput {
   referralSource: ReferralSource
 }
 
+"""
+Not yet enforced anywhere — RolesGuard does not read this table (see GAP-002 in GAP-ANALYSIS.md).
+"""
 type RolePermission {
   createdAt: DateTime!
   id: String!
@@ -997,6 +1038,13 @@ input UpdateCampaignInput {
   title: String
   trackingLink: String
   trafficAllowed: [String!]
+}
+
+input UpdateCrExperimentInput {
+  description: String
+  metadata: JSON
+  name: String
+  status: String
 }
 
 input UpdateFaqInput {

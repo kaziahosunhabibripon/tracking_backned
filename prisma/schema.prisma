@@ -35,6 +35,7 @@ model User {
   advertiser    Advertiser?
   managedAdvertisers Advertiser[] @relation("ManagerToAdvertisers")
   refreshTokens RefreshToken[]
+  notifications Notification[]
 }
 
 // ---- Auth sessions ----
@@ -599,10 +600,15 @@ model Notification {
   message   String   @db.Text
   type      String   @default("info")
   broadcast Boolean @default(false)
+  /// Recipient for a personal (broadcast: false) notification. Null for
+  /// broadcast notifications, which have no single recipient.
+  userId    String?  @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   reads     NotificationRead[]
 
   @@index([createdAt])
+  @@index([userId])
 }
 
 model NotificationRead {

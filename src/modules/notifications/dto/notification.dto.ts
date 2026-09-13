@@ -32,6 +32,12 @@ export class CreateNotificationInput {
   @IsOptional()
   @IsBoolean()
   broadcast?: boolean;
+
+  /** Recipient for a personal (broadcast: false) notification. */
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
 }
 
 @InputType()
