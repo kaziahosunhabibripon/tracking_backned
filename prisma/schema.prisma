@@ -36,6 +36,12 @@ model User {
   managedAdvertisers Advertiser[] @relation("ManagerToAdvertisers")
   refreshTokens RefreshToken[]
   notifications Notification[]
+  loginLogs       LoginLog[]
+  supportTickets  SupportTicket[] @relation("SupportTicketAuthor")
+  assignedTickets SupportTicket[] @relation("SupportTicketAssignee")
+  subscriptions   Subscription[]
+  paymentMethods  PaymentMethod[]
+  invoices        Invoice[]
 }
 
 // ---- Auth sessions ----
@@ -672,6 +678,7 @@ enum SubscriptionStatus {
 model Subscription {
   id                 String              @id @default(uuid()) @db.Uuid
   userId             String              @db.Uuid
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   planId             String              @db.Uuid
   plan               Plan                @relation(fields: [planId], references: [id])
   status             SubscriptionStatus  @default(INCOMPLETE)
@@ -683,6 +690,8 @@ model Subscription {
   canceledAt         DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+
+  invoices Invoice[]
 
   @@index([userId])
   @@index([stripeSubscriptionId])
@@ -697,6 +706,7 @@ enum PaymentMethodType {
 model PaymentMethod {
   id                  String             @id @default(uuid()) @db.Uuid
   userId              String             @db.Uuid
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   type                PaymentMethodType
   stripePaymentMethodId String           @unique
   isDefault           Boolean            @default(false)
@@ -721,7 +731,9 @@ enum InvoiceStatus {
 model Invoice {
   id                String           @id @default(uuid()) @db.Uuid
   userId            String           @db.Uuid
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscriptionId    String?          @db.Uuid
+  subscription      Subscription?    @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   stripeInvoiceId   String?          @unique
   number            String?
   status            InvoiceStatus    @default(DRAFT)
@@ -790,6 +802,7 @@ model SignupQuestion {
 model LoginLog {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ip        String
   userAgent String?
   success   Boolean
@@ -803,11 +816,13 @@ model LoginLog {
 model SupportTicket {
   id          String             @id @default(uuid()) @db.Uuid
   userId      String             @db.Uuid
+  user        User               @relation("SupportTicketAuthor", fields: [userId], references: [id], onDelete: Cascade)
   subject     String
   description String             @db.Text
   priority    TicketPriority     @default(MEDIUM)
   status      TicketStatus       @default(OPEN)
-  assigneeId  String?
+  assigneeId  String?            @db.Uuid
+  assignee    User?              @relation("SupportTicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   resolvedAt  DateTime?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt

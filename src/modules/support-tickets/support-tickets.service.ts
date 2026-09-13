@@ -36,7 +36,7 @@ export class SupportTicketsService {
   }
 
   async update(id: string, input: UpdateSupportTicketInput) {
-    const data: Prisma.SupportTicketUpdateInput = {};
+    const data: Prisma.SupportTicketUncheckedUpdateInput = {};
     if (input.priority) data.priority = input.priority;
     if (input.status) {
       data.status = input.status;
