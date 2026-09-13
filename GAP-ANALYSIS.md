@@ -171,12 +171,13 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Fix:** Add the Stripe keys to `env.validation.ts` (at least `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` if billing is enabled), and add a `.env.example`.
 **Resolution (2026-09-13):** `.env.example` already existed by this point (added sometime after this doc was originally written). Added a boot-time check: exactly one of `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` set (not both, not neither) now throws — billing stays fully optional only when both are unset.
 
-### GAP-023 — Manager write access to advertisers isn't scoped to "advertisers I manage"
+### GAP-023 — Manager write access to advertisers isn't scoped to "advertisers I manage" ✅ RESOLVED
 
 **Module:** `advertisers`
 **Evidence:** `updateAdvertiser`/`softDeleteAdvertiser` are gated `@Roles(SUPER_ADMIN, ADMIN, MANAGER)` with no check against `Advertiser.managerId`.
 **Impact:** Any MANAGER can edit or deactivate any advertiser, not just ones assigned to them. May be intentional (managers are trusted staff) — flagging because every other "manager"-shaped relationship in the schema (`managerId`) suggests scoping was intended somewhere.
 **Fix:** Needs a product decision: confirm whether manager-level access should be scoped, and if so add an ownership check mirroring `campaigns.resolver.ts`'s `assertCanWrite` pattern.
+**Resolution (2026-09-13):** Decided scoping was intended (the whole reason `managerId` exists), not the "managers are fully trusted" alternative. Added `assertCanWrite()` to `AdvertisersResolver.update()`, matching `CampaignsResolver`'s pattern exactly: SUPER_ADMIN/ADMIN bypass, MANAGER only on advertisers where `managerId` is their own id. `softDeleteAdvertiser` needed no change — MANAGER was never in its `@Roles` list. `createAdvertiser` deliberately left alone: a MANAGER assigning an arbitrary `managerId` while creating a _new_ advertiser is a different question this gap's evidence never raised.
 
 ### GAP-024 — Advertiser/Campaign soft-delete overloads the status enum ✅ RESOLVED
 
@@ -280,20 +281,17 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ## Summary
 
-| Severity    | Count  | Resolved                      |
-| ----------- | ------ | ----------------------------- |
-| 🔴 Critical | 2      | 2                             |
-| 🟠 High     | 12     | 12                            |
-| 🟡 Medium   | 14     | 10 (all but GAP-011, GAP-023) |
-| ⚪ Low      | 5      | 5                             |
-| **Total**   | **33** | **29**                        |
+| Severity    | Count  | Resolved             |
+| ----------- | ------ | -------------------- |
+| 🔴 Critical | 2      | 2                    |
+| 🟠 High     | 12     | 12                   |
+| 🟡 Medium   | 14     | 11 (all but GAP-011) |
+| ⚪ Low      | 5      | 5                    |
+| **Total**   | **33** | **30**               |
 
 **Resolved 2026-09-06:** GAP-001 (Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, 027 (16 marked ✅ above — GAP-027 wasn't in the original 33-count, it was found and fixed as a bonus alongside GAP-009).
-**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-030, GAP-031, GAP-032, GAP-033, GAP-034.
+**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-023, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-030, GAP-031, GAP-032, GAP-033, GAP-034.
 
-**Deferred — needs a product/architecture decision, not a mechanical fix**: GAP-023 (manager-scoping to "advertisers I manage" — may be intentional, needs confirmation).
-**Deferred — large feature build, not a "fix"**: GAP-011 (Stripe checkout/subscription-management mutations).
-
-Only 2 gaps remain open, neither Critical nor High, both genuinely needing a decision from the project owner rather than more mechanical work: GAP-011, GAP-023.
+**Deferred — large feature build, not a "fix"**: GAP-011 (Stripe checkout/subscription-management mutations) — the only gap still open, and not Critical or High.
 
 **Also resolved since the previous review pass:** the 8-way duplicated reports-resolver/service pattern has been refactored into a shared `paginatedReport` helper in `admin-reports.service.ts`.
