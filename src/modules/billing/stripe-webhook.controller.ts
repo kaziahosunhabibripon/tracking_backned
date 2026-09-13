@@ -11,6 +11,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import Stripe from 'stripe';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { StripeClientService } from './stripe-client.service';
 
 /**
  * Fields this webhook reads that aren't on `Stripe.Invoice`'s typed
@@ -43,23 +44,15 @@ interface StripeSubscriptionPeriod {
 @Controller()
 export class StripeWebhookController {
   private readonly logger = new Logger(StripeWebhookController.name);
-  private readonly stripe: Stripe | null;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {
-    const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
-    if (!secretKey) {
-      this.logger.warn(
-        'STRIPE_SECRET_KEY not set — /stripe/webhook will reject requests with 503.',
-      );
-      this.stripe = null;
-      return;
-    }
-    this.stripe = new Stripe(secretKey, {
-      apiVersion: '2026-08-26.dahlia',
-    });
+    private readonly stripeClient: StripeClientService,
+  ) {}
+
+  private get stripe(): Stripe | null {
+    return this.stripeClient.client;
   }
 
   @Public()

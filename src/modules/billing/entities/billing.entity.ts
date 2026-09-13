@@ -2,6 +2,13 @@ import { Field, ObjectType } from '@nestjs/graphql';
 import { PlanInterval, SubscriptionStatus } from '@prisma/client';
 import GraphQLJSON from 'graphql-type-json';
 
+/** A URL to redirect the browser to — a Stripe Checkout or Billing Portal session. */
+@ObjectType()
+export class StripeRedirect {
+  @Field(() => String)
+  url!: string;
+}
+
 @ObjectType()
 export class Plan {
   @Field(() => String)

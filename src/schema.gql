@@ -375,6 +375,10 @@ input CreateAffiliatePaymentInput {
   transactionId: String
 }
 
+input CreateBillingPortalSessionInput {
+  returnUrl: String!
+}
+
 input CreateCampaignCapInput {
   capLimit: Int!
   capType: CapType!
@@ -415,6 +419,12 @@ input CreateCampaignPayoutInput {
 input CreateCampaignRemarkInput {
   forRole: UserRole!
   text: String!
+}
+
+input CreateCheckoutSessionInput {
+  cancelUrl: String!
+  planId: String!
+  successUrl: String!
 }
 
 input CreateCrExperimentInput {
@@ -596,7 +606,17 @@ type Mutation {
   createAdvertiser(input: CreateAdvertiserInput!): Advertiser!
   createAffiliateGroup(input: CreateAffiliateGroupInput!): AffiliateGroup!
   createAffiliatePayment(input: CreateAffiliatePaymentInput!): AffiliatePayment!
+
+  """
+  Opens Stripe's hosted Billing Portal — change plan, cancel, manage payment methods, view invoice history all in one place.
+  """
+  createBillingPortalSession(input: CreateBillingPortalSessionInput!): StripeRedirect!
   createCampaign(input: CreateCampaignInput!): Campaign!
+
+  """
+  Starts a new subscription via a Stripe-hosted Checkout page. Rejects if the user already has one — use createBillingPortalSession to change plans instead.
+  """
+  createCheckoutSession(input: CreateCheckoutSessionInput!): StripeRedirect!
   createCrExperiment(input: CreateCrExperimentInput!): CrExperiment!
   createFaq(input: CreateFaqInput!): Faq!
   createNotification(input: CreateNotificationInput!): Notification!
@@ -955,6 +975,10 @@ type SignupQuestion {
   sortOrder: Float!
   type: String!
   updatedAt: DateTime!
+}
+
+type StripeRedirect {
+  url: String!
 }
 
 type Subscription {

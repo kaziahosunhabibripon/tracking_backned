@@ -733,10 +733,9 @@ Headers: `X-Signature: <hmac-sha256(body, POSTBACK_SECRET)>`
 - [x] `login-logs`, `support-tickets`.
 - [x] `roles-permissions` CRUD — note: not yet wired into `RolesGuard`, so granting/revoking a permission has no effect on authorization yet (deliberately deferred, needs a product/architecture decision; see GAP-002 in GAP-ANALYSIS.md).
 - [x] `billing/plans` (public — `traking-web/pricing`).
-- [x] `billing/subscription` (current — `mySubscription` query only).
-- [ ] `billing/subscription` change-plan / cancel mutations — not implemented (see GAP-ANALYSIS.md).
-- [x] `billing/payment-methods` (`myPaymentMethods` query only).
-- [ ] `billing/payment-methods` add/delete/set-default mutations — not implemented (see GAP-ANALYSIS.md).
+- [x] `billing/subscription` (`mySubscription` query + `createCheckoutSession` to start one).
+- [x] `billing/subscription` change-plan / cancel — via `createBillingPortalSession` (Stripe's hosted Billing Portal), not a dedicated GraphQL mutation. See GAP-011 in GAP-ANALYSIS.md for why: the portal already covers change-plan/cancel/payment-methods/invoices in one Stripe-hosted UI, so building separate mutations for each would mean touching raw payment data ourselves for no benefit.
+- [x] `billing/payment-methods` (`myPaymentMethods` query — add/delete/set-default all happen through the billing portal, same reasoning as above).
 - [x] `billing/invoices` (history).
 - [x] `billing/webhook.controller.ts` — `POST /stripe/webhook` (REST, public, throttler-disabled, raw body).
 - [x] Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_PATH`.

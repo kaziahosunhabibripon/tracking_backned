@@ -379,6 +379,30 @@ Allowed file types:
 
 SVG is intentionally **not** allowed: `GET /files/:name` serves uploads publicly and unauthenticated, and an SVG can carry `<script>`/event-handler payloads — allowing it would be a stored-XSS vector.
 
+## Billing / Subscription Flow
+
+```mermaid
+flowchart TD
+    Pricing["Pricing page (plans query, public)"] --> Checkout["createCheckoutSession(planId, successUrl, cancelUrl)"]
+    Checkout --> Redirect1["Redirect browser to returned url — Stripe-hosted Checkout"]
+    Redirect1 --> Webhook1["Stripe fires checkout.session.completed"]
+    Webhook1 --> Sub["Subscription row created/updated"]
+
+    Account["Account/billing page (mySubscription query)"] --> Portal["createBillingPortalSession(returnUrl)"]
+    Portal --> Redirect2["Redirect browser to returned url — Stripe-hosted Billing Portal"]
+    Redirect2 --> Actions["Change plan / cancel / add,remove,set-default payment method / view invoices"]
+    Actions --> Webhook2["Stripe fires customer.subscription.updated/deleted etc."]
+    Webhook2 --> Sub
+```
+
+There is deliberately **no** `changePlan`, `cancelSubscription`, `addPaymentMethod`, `deletePaymentMethod`, or `setDefaultPaymentMethod` mutation — Stripe's hosted Billing Portal already covers all of that in one place, so building separate mutations for each would mean the backend touching raw payment data for no real benefit (see GAP-011 in GAP-ANALYSIS.md). The frontend never builds its own card form; it only ever redirects to a URL Stripe returns.
+
+- `createCheckoutSession(input: { planId, successUrl, cancelUrl })` — starts a **new** subscription. Fails with a clear error if the user already has one (`ACTIVE`/`TRIALING`/`PAST_DUE`) — send them to `createBillingPortalSession` instead.
+- `createBillingPortalSession(input: { returnUrl })` — for an **existing** subscriber: change plan, cancel, manage payment methods, view invoice history. Fails if the user has never subscribed (no Stripe customer yet).
+- Both return `{ url }` — the frontend's only job is `window.location.href = url`.
+- **`successUrl`/`cancelUrl`/`returnUrl` must be on an already-configured `FRONTEND_URL` origin** (the same CORS allow-list, reused as a trusted-redirect list) — a URL on any other origin is rejected with a 400. Localhost dev origins already in `.env.local`/`.env.example` work out of the box; a new deployed frontend origin needs adding to `FRONTEND_URL` before checkout/portal links from it will work.
+- The actual subscription state (`status`, `currentPeriodEnd`, etc.) only ever changes via the Stripe webhook, never directly from these two mutations — expect a short delay between the portal/checkout redirect completing and `mySubscription` reflecting the new state, same as any Stripe-hosted-page integration.
+
 ## Backend Data Model
 
 ```mermaid

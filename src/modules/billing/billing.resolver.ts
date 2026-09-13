@@ -11,8 +11,13 @@ import {
   Subscription,
   PaymentMethod,
   Invoice,
+  StripeRedirect,
 } from './entities/billing.entity';
 import { CreatePlanInput, UpdatePlanInput } from './dto/plan.dto';
+import {
+  CreateBillingPortalSessionInput,
+  CreateCheckoutSessionInput,
+} from './dto/checkout.dto';
 import type { AuthenticatedUser } from '../../modules/auth/interfaces/authenticated-user.interface';
 
 @Resolver(() => Plan)
@@ -48,6 +53,30 @@ export class BillingResolver {
   @Query(() => [PaymentMethod])
   async myPaymentMethods(@CurrentUser() user: AuthenticatedUser) {
     return this.billingService.paymentMethods(user.sub);
+  }
+
+  @UseGuards(GqlJwtAuthGuard)
+  @Mutation(() => StripeRedirect, {
+    description:
+      'Starts a new subscription via a Stripe-hosted Checkout page. Rejects if the user already has one — use createBillingPortalSession to change plans instead.',
+  })
+  async createCheckoutSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: CreateCheckoutSessionInput,
+  ) {
+    return this.billingService.createCheckoutSession(user, input);
+  }
+
+  @UseGuards(GqlJwtAuthGuard)
+  @Mutation(() => StripeRedirect, {
+    description:
+      "Opens Stripe's hosted Billing Portal — change plan, cancel, manage payment methods, view invoice history all in one place.",
+  })
+  async createBillingPortalSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Args('input') input: CreateBillingPortalSessionInput,
+  ) {
+    return this.billingService.createBillingPortalSession(user, input);
   }
 
   @UseGuards(GqlJwtAuthGuard)
