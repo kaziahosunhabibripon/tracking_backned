@@ -147,26 +147,29 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Fix:** Add `@IsUUID`/`@IsNotEmpty`/`@IsNumberString`/`@MaxLength` etc. to bring these DTOs to parity with the rest of the codebase. This is mechanical, high-value, low-risk work — a good first PR.
 **Resolution (2026-09-13):** Done across all 7 listed modules, plus `offers`, `notifications`, `billing`, `settings`, `cr-optimizer` (13 total). Alongside this, `findOne`/`update`/`delete`-style methods across these modules now throw typed `NotFoundException`/`ConflictException` instead of returning `null` silently or leaking a raw Prisma `P2025`/`P2002` error as an opaque 500 (the same review that flagged this also flagged that as a separate, related gap not in the original GAP-xxx numbering).
 
-### GAP-017 — No admin CRUD for users
+### GAP-017 — No admin CRUD for users ✅ RESOLVED
 
 **Module:** `users`
 **Evidence:** `users.module.ts` declares only `UsersService`; no `UsersResolver` exists anywhere in the repo.
 **Impact:** There is no way to list, search, deactivate, or change a user's role through the API — a functional gap for any admin panel.
 **Fix:** Add a staff-only `UsersResolver` (list/search/deactivate/change-role), reusing the existing `UsersService`.
+**Resolution (2026-09-13):** Added `UsersResolver`: `users(filter)` (STAFF+), `setUserActive` (ADMIN+), `changeUserRole` (SUPER_ADMIN only — deliberately tighter, since it's the one that can grant/revoke SUPER_ADMIN itself).
 
-### GAP-018 — No mutation to change affiliate application status
+### GAP-018 — No mutation to change affiliate application status ✅ RESOLVED
 
 **Module:** `affiliates`
 **Evidence:** Every affiliate is created `PENDING` (`auth.service.ts`); grep for `AffiliateStatus.` and `affiliate.update` shows only the seed script and registration path ever write it.
 **Impact:** An affiliate application can never be approved, rejected, or suspended through the API.
 **Fix:** Add a staff-only `updateAffiliateStatus` mutation.
+**Resolution (2026-09-13):** Added, gated the same as the existing `affiliate`/`affiliates` read queries on this resolver (STAFF+).
 
-### GAP-022 — Stripe env vars undocumented and unvalidated at boot
+### GAP-022 — Stripe env vars undocumented and unvalidated at boot ✅ RESOLVED
 
 **Module:** config / `billing`
 **Evidence:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_PATH` are mentioned in `plan.md` but absent from `src/config/env.validation.ts`'s required-keys list, and there's no `.env.example` anywhere in the repo. `STRIPE_SECRET_KEY` is checked ad hoc in the webhook controller's constructor (throws a plain `Error`); `STRIPE_WEBHOOK_SECRET` is only checked per-request.
 **Impact:** A misconfigured deploy boots cleanly and only fails the first time a real webhook arrives — a production surprise instead of a boot-time failure.
 **Fix:** Add the Stripe keys to `env.validation.ts` (at least `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` if billing is enabled), and add a `.env.example`.
+**Resolution (2026-09-13):** `.env.example` already existed by this point (added sometime after this doc was originally written). Added a boot-time check: exactly one of `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` set (not both, not neither) now throws — billing stays fully optional only when both are unset.
 
 ### GAP-023 — Manager write access to advertisers isn't scoped to "advertisers I manage"
 
@@ -175,26 +178,29 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Impact:** Any MANAGER can edit or deactivate any advertiser, not just ones assigned to them. May be intentional (managers are trusted staff) — flagging because every other "manager"-shaped relationship in the schema (`managerId`) suggests scoping was intended somewhere.
 **Fix:** Needs a product decision: confirm whether manager-level access should be scoped, and if so add an ownership check mirroring `campaigns.resolver.ts`'s `assertCanWrite` pattern.
 
-### GAP-024 — Advertiser/Campaign soft-delete overloads the status enum
+### GAP-024 — Advertiser/Campaign soft-delete overloads the status enum ✅ RESOLVED
 
 **Modules:** `advertisers`, `campaigns`
 **Evidence:** `softDelete` sets `Advertiser.status = 'INACTIVE'` and `Campaign.status = 'EXPIRED'`. Neither model has a `deletedAt`/`isDeleted` column.
 **Impact:** A genuinely time-expired campaign and an admin-deleted campaign become indistinguishable — any "expired campaigns" report will silently include deleted ones, and there's no way to distinguish "advertiser deactivated themselves" from "advertiser was removed" in `INACTIVE`.
 **Fix:** Add a real `deletedAt: DateTime?` column to both models and filter on it explicitly, keeping `status` for its actual lifecycle meaning.
+**Resolution (2026-09-13):** Added the column (migration `add_soft_delete_timestamps`) and set it in `softDelete()` alongside the existing status change. Deliberately did _not_ retrofit every list/report query to filter on it — that's a UX/reporting-visibility decision (should a deleted advertiser vanish from staff's list entirely, or stay visible with a badge? should historical reports include deleted campaigns' clicks/conversions?) better made when a concrete report/screen needs it, not guessed at here. This is purely additive: no existing query's results changed.
 
-### GAP-025 — Stripe webhook has no idempotency ledger for event ordering
+### GAP-025 — Stripe webhook has no idempotency ledger for event ordering ✅ RESOLVED
 
 **Module:** `billing`
 **Evidence:** Handlers are idempotent for exact-duplicate delivery (upsert/updateMany keyed by Stripe IDs) but there's no stored record of processed `event.id`s or check of `event.created` ordering.
 **Impact:** Stripe doesn't guarantee in-order delivery; an out-of-order `customer.subscription.updated` could overwrite newer state with stale data. No way to inspect/replay a specific failed webhook later either.
 **Fix:** Add a `WebhookEvent` table keyed by Stripe `event.id`, and compare `event.created` before applying an update.
+**Resolution (2026-09-13):** Added `WebhookEvent` (migration `add_webhook_event_ledger`), keyed by `event.id` plus an `objectId` (the Stripe subscription id the event pertains to) and `eventCreatedAt`. `handleWebhook` now short-circuits an already-processed `event.id`, and for subscription/invoice events, skips applying one that's older than an already-recorded event for the same object.
 
-### GAP-026 — `support-tickets` update payload typed `any`; `assigneeId` unvalidated
+### GAP-026 — `support-tickets` update payload typed `any`; `assigneeId` unvalidated ✅ RESOLVED
 
 **Module:** `support-tickets`
 **Evidence:** `SupportTicketsService.update`'s `data` parameter is explicitly `any`. `assigneeId` accepts any string with no check that it references an existing (staff) user, and there's no DB-level FK either.
 **Impact:** Loses type safety on the Prisma update payload; a ticket can be "assigned" to a garbage ID with no error.
 **Fix:** Type `data` as `Prisma.SupportTicketUpdateInput`; validate `assigneeId` against `UsersService` (and consider a real FK once the repo-wide FK-to-User convention is addressed, see GAP-030).
+**Resolution (2026-09-13):** `data` retyped; added `assertAssignable()` checking the target user exists and has a staff role, called when `assigneeId` is being set (not when clearing to `null`). The FK-to-User part is still open — see GAP-030.
 
 ### GAP-027 — `signup-questions.options` JSON/String type mismatch ✅ RESOLVED
 
@@ -203,19 +209,21 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Impact:** A client sending a structured object (the natural shape for multiple-choice options) is rejected at the GraphQL layer.
 **Fix:** Same as GAP-009 — use a JSON scalar.
 
-### GAP-028 — Refresh tokens have no expiry/cleanup job
+### GAP-028 — Refresh tokens have no expiry/cleanup job ✅ RESOLVED
 
 **Module:** `auth`
 **Evidence:** No cron/scheduled sweep of expired or revoked `RefreshToken` rows exists anywhere in the repo.
 **Impact:** The table grows unbounded forever — every login and every rotation adds a row that's never removed.
 **Fix:** Add a scheduled job (e.g. `@nestjs/schedule` cron) that deletes rows past `expiresAt` (and optionally revoked rows older than some retention window).
+**Resolution (2026-09-13):** Added `@nestjs/schedule`, registered `ScheduleModule.forRoot()`, and a daily `@Cron` job on `RefreshTokenService` deleting expired rows and revoked rows past a 30-day retention window. `@nestjs/schedule` ships ESM-only, which broke Jest for every spec transitively importing this service until a `transformIgnorePatterns` entry was added.
 
-### GAP-029 — Tracking unit tests don't cover all branches
+### GAP-029 — Tracking unit tests don't cover all branches ✅ RESOLVED
 
 **Module:** `tracking`
 **Evidence:** `click.service.spec.ts` doesn't test the "campaign not ACTIVE/PAUSED" or "campaign expired" rejection branches, or the `isUnique` dedup logic itself. `postback.service.spec.ts`'s happy-path test doesn't assert the `campaignCap.updateMany` call actually happened inside the transaction.
 **Impact:** Real business-rule branches ship without a regression net.
 **Fix:** Add the missing cases — this is incremental work on an already-good foundation, not a rewrite.
+**Resolution (2026-09-13):** Added all four missing cases.
 
 ### GAP-021 — `test:integration` npm script removed while its config was added ✅ RESOLVED
 
@@ -271,19 +279,21 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ## Summary
 
-| Severity    | Count  | Resolved             |
-| ----------- | ------ | -------------------- |
-| 🔴 Critical | 2      | 2                    |
-| 🟠 High     | 12     | 12                   |
-| 🟡 Medium   | 14     | 2 (GAP-016, GAP-021) |
-| ⚪ Low      | 5      | 4 (GAP-031–034)      |
-| **Total**   | **33** | **20**               |
+| Severity    | Count  | Resolved                      |
+| ----------- | ------ | ----------------------------- |
+| 🔴 Critical | 2      | 2                             |
+| 🟠 High     | 12     | 12                            |
+| 🟡 Medium   | 14     | 10 (all but GAP-011, GAP-023) |
+| ⚪ Low      | 5      | 4 (all but GAP-030)           |
+| **Total**   | **33** | **28**                        |
 
 **Resolved 2026-09-06:** GAP-001 (Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, 027 (16 marked ✅ above — GAP-027 wasn't in the original 33-count, it was found and fixed as a bonus alongside GAP-009).
-**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013 (schema migration + rewrite), GAP-016 (input validation, 13 modules), GAP-031, GAP-032, GAP-033, GAP-034 (all one-off mechanical fixes).
+**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-031, GAP-032, GAP-033, GAP-034.
 
 **Deferred — needs a product/architecture decision, not a mechanical fix**: GAP-023 (manager-scoping to "advertisers I manage" — may be intentional, needs confirmation).
 **Deferred — large feature build, not a "fix"**: GAP-011 (Stripe checkout/subscription-management mutations).
-**Not yet started**: GAP-017, 018, 022, 024, 025, 026 (partially: DTO-level `assigneeId` format is now validated, but the service still types its update payload `any` and doesn't check the assignee actually exists), 028, 029, 030 (deliberately — see its entry: touches 4 models at once, the entry itself calls for a dedicated pass rather than a one-off).
+**Deferred deliberately**: GAP-030 (FK constraints to `User`) — touches 4 models at once; the entry itself calls for a dedicated pass rather than a one-off.
+
+Only 3 gaps remain open, none Critical or High: GAP-011, GAP-023, GAP-030.
 
 **Also resolved since the previous review pass:** the 8-way duplicated reports-resolver/service pattern has been refactored into a shared `paginatedReport` helper in `admin-reports.service.ts`.
