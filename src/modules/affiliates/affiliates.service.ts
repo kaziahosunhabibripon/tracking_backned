@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Affiliate as PrismaAffiliate } from '@prisma/client';
+import { Affiliate as PrismaAffiliate, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { NotFoundException } from '../../common/errors/app.exception';
 import {
+  AffiliateStatus,
   BusinessType,
   ContactMethod,
   CurrentPlatform,
@@ -46,5 +48,25 @@ export class AffiliatesService {
 
   findAll(): Promise<PrismaAffiliate[]> {
     return this.prisma.affiliate.findMany();
+  }
+
+  async updateStatus(
+    affiliateId: string,
+    status: AffiliateStatus,
+  ): Promise<PrismaAffiliate> {
+    try {
+      return await this.prisma.affiliate.update({
+        where: { id: affiliateId },
+        data: { status },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Affiliate not found.');
+      }
+      throw err;
+    }
   }
 }

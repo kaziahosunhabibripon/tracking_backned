@@ -284,6 +284,11 @@ enum CapType {
   WEEKLY
 }
 
+input ChangeUserRoleInput {
+  role: UserRole!
+  userId: String!
+}
+
 type ClickLogRecord {
   affiliateId: String!
   browser: String!
@@ -583,6 +588,11 @@ input MarkNotificationReadInput {
 type Mutation {
   addGroupMember(input: AddGroupMemberInput!): AffiliateGroupMember!
   approveOffer(input: ApproveOfferInput!): Offer!
+
+  """
+  Change a user's role. Restricted to SUPER_ADMIN — this can grant/revoke staff privileges, including SUPER_ADMIN itself.
+  """
+  changeUserRole(input: ChangeUserRoleInput!): User!
   createAdvertiser(input: CreateAdvertiserInput!): Advertiser!
   createAffiliateGroup(input: CreateAffiliateGroupInput!): AffiliateGroup!
   createAffiliatePayment(input: CreateAffiliatePaymentInput!): AffiliatePayment!
@@ -622,12 +632,18 @@ type Mutation {
   """Affiliate self-registration ("Apply Now" on /sign-up)."""
   registerAffiliate(input: RegisterAffiliateInput!): AuthPayload!
   removeGroupMember(affiliateId: String!, groupId: String!): Boolean!
+
+  """Activate or deactivate a user account."""
+  setUserActive(input: SetUserActiveInput!): User!
   signIn(input: SignInInput!): AuthPayload!
   softDeleteAdvertiser(id: ID!): Advertiser!
   softDeleteCampaign(id: ID!): Campaign!
   toggleCampaignStatus(id: ID!): Campaign!
   updateAdvertiser(input: UpdateAdvertiserInput!): Advertiser!
   updateAffiliateGroup(id: String!, input: UpdateAffiliateGroupInput!): AffiliateGroup!
+
+  """Approve, reject, or suspend an affiliate application/account."""
+  updateAffiliateStatus(input: UpdateAffiliateStatusInput!): Affiliate!
   updateCampaign(input: UpdateCampaignInput!): Campaign!
   updateCrExperiment(id: String!, input: UpdateCrExperimentInput!): CrExperiment!
   updateFaq(id: String!, input: UpdateFaqInput!): Faq!
@@ -853,6 +869,7 @@ type Query {
   signupQuestions: [SignupQuestion!]!
   supportTickets: [SupportTicket!]!
   topCampaigns(advertiserId: String, limit: Int, range: DateRangeInput): [CampaignPerformance!]!
+  users(filter: UserFilterInput): [User!]!
 }
 
 type Referral {
@@ -908,6 +925,11 @@ type RolePermission {
 type SelectOption {
   label: String!
   value: String!
+}
+
+input SetUserActiveInput {
+  isActive: Boolean!
+  userId: String!
 }
 
 type Setting {
@@ -1016,6 +1038,11 @@ input UpdateAffiliateGroupInput {
   tags: [String!]
 }
 
+input UpdateAffiliateStatusInput {
+  affiliateId: String!
+  status: AffiliateStatus!
+}
+
 input UpdateCampaignInput {
   caps: [CreateCampaignCapInput!]
   category: String
@@ -1121,6 +1148,11 @@ type User {
   lastLoginAt: DateTime
   lastName: String!
   role: UserRole!
+}
+
+input UserFilterInput {
+  role: UserRole
+  search: String
 }
 
 """A user's fixed staff/affiliate role."""

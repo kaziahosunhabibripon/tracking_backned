@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { User as PrismaUser } from '@prisma/client';
+import { Prisma, User as PrismaUser } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
   ConflictException,
+  NotFoundException,
   UnauthorizedException,
 } from '../../common/errors/app.exception';
 import { UserRole } from './enums/user-role.enum';
+
+export interface UserSearchInput {
+  search?: string;
+  role?: UserRole;
+}
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -96,5 +102,47 @@ export class UsersService {
         isActive: true,
       },
     });
+  }
+
+  findAll(input: UserSearchInput = {}): Promise<PrismaUser[]> {
+    const where: Prisma.UserWhereInput = {};
+    if (input.role) where.role = input.role;
+    if (input.search && input.search.trim().length > 0) {
+      const q = input.search.trim();
+      where.OR = [
+        { email: { contains: q, mode: 'insensitive' } },
+        { firstName: { contains: q, mode: 'insensitive' } },
+        { lastName: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    return this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async setActive(userId: string, isActive: boolean): Promise<PrismaUser> {
+    return this.updateOrNotFound(userId, { isActive });
+  }
+
+  async changeRole(userId: string, role: UserRole): Promise<PrismaUser> {
+    return this.updateOrNotFound(userId, { role });
+  }
+
+  private async updateOrNotFound(
+    userId: string,
+    data: Prisma.UserUpdateInput,
+  ): Promise<PrismaUser> {
+    try {
+      return await this.prisma.user.update({ where: { id: userId }, data });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('User not found.');
+      }
+      throw err;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Args, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RolesExact } from '../../common/decorators/roles.decorator';
@@ -6,6 +6,7 @@ import { GqlJwtAuthGuard } from '../../modules/auth/guards/gql-jwt-auth.guard';
 import { UserRole } from '@prisma/client';
 import { Affiliate } from './entities/affiliate.entity';
 import { AffiliatesService } from './affiliates.service';
+import { UpdateAffiliateStatusInput } from './dto/update-affiliate-status.input';
 import type { AuthenticatedUser } from '../../modules/auth/interfaces/authenticated-user.interface';
 
 @Resolver(() => Affiliate)
@@ -41,5 +42,22 @@ export class AffiliatesResolver {
   @Query(() => [Affiliate])
   async affiliates() {
     return this.affiliatesService.findAll();
+  }
+
+  @UseGuards(GqlJwtAuthGuard)
+  @RolesExact(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+    UserRole.STAFF,
+  )
+  @Mutation(() => Affiliate, {
+    description:
+      'Approve, reject, or suspend an affiliate application/account.',
+  })
+  async updateAffiliateStatus(
+    @Args('input') input: UpdateAffiliateStatusInput,
+  ) {
+    return this.affiliatesService.updateStatus(input.affiliateId, input.status);
   }
 }
