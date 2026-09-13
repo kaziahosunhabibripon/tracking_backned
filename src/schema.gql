@@ -170,7 +170,6 @@ type AuthPayload {
   accessToken: String!
   expiresIn: Int!
   refreshExpiresIn: Int!
-  refreshToken: String!
   tokenType: String!
   user: User!
 }

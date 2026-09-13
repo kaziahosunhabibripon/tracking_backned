@@ -19,8 +19,8 @@ export class PerformanceService {
   async series(input: PerformanceQueryInput) {
     const range = resolveDateRange(input.preset, input.from, input.to);
     const campaignFilter = input.advertiserId
-      ? `AND c."advertiserId" = '${input.advertiserId}'`
-      : '';
+      ? Prisma.sql`AND c."advertiserId" = ${input.advertiserId}`
+      : Prisma.empty;
 
     // Generate a series of days from `from` to `to` and LEFT JOIN clicks +
     // conversions so days with zero activity still appear (frontend chart
@@ -50,11 +50,11 @@ export class PerformanceService {
       FROM days d
       LEFT JOIN "Click" cl ON cl."createdAt"::date = d.day
         AND cl."campaignId" IN (
-          SELECT c.id FROM "Campaign" c WHERE 1 = 1 ${Prisma.raw(campaignFilter)}
+          SELECT c.id FROM "Campaign" c WHERE 1 = 1 ${campaignFilter}
         )
       LEFT JOIN "Conversion" cv ON cv."createdAt"::date = d.day
         AND cv."campaignId" IN (
-          SELECT c.id FROM "Campaign" c WHERE 1 = 1 ${Prisma.raw(campaignFilter)}
+          SELECT c.id FROM "Campaign" c WHERE 1 = 1 ${campaignFilter}
         )
       GROUP BY d.day
       ORDER BY d.day ASC

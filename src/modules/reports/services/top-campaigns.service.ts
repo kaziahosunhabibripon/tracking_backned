@@ -45,7 +45,11 @@ export class TopCampaignsService {
       FROM "Campaign" c
       LEFT JOIN "Click" cl ON cl."campaignId" = c.id AND cl."createdAt" BETWEEN ${range.from} AND ${range.to}
       LEFT JOIN "Conversion" cv ON cv."campaignId" = c.id AND cv."createdAt" BETWEEN ${range.from} AND ${range.to}
-      ${Prisma.raw(input.advertiserId ? `WHERE c."advertiserId" = '${input.advertiserId}'` : '')}
+      ${
+        input.advertiserId
+          ? Prisma.sql`WHERE c."advertiserId" = ${input.advertiserId}`
+          : Prisma.empty
+      }
       GROUP BY c.id, c.name, c.status
       ORDER BY SUM(cv.revenue) DESC NULLS LAST
       LIMIT ${limit}

@@ -6,7 +6,11 @@ export class AuthPayload {
   @Field(() => String)
   accessToken!: string;
 
-  @Field(() => String)
+  /**
+   * Never exposed as a GraphQL field — the refresh token only ever leaves
+   * the server as the httpOnly cookie CookieService sets. This property
+   * exists so the resolver can still hand the raw value to CookieService.
+   */
   refreshToken!: string;
 
   @Field(() => String)

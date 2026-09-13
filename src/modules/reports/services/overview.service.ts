@@ -19,8 +19,8 @@ export class OverviewService {
   async stats(input: OverviewStatsQueryInput) {
     const range = resolveDateRange(input.preset, input.from, input.to);
     const campaignFilter = input.advertiserId
-      ? `AND c."advertiserId" = '${input.advertiserId}'`
-      : '';
+      ? Prisma.sql`AND c."advertiserId" = ${input.advertiserId}`
+      : Prisma.empty;
 
     // One raw SQL round-trip for all 4 stat cards. The DB does the
     // aggregation so we never load Click/Conversion rows into JS.
@@ -42,7 +42,7 @@ export class OverviewService {
       FROM "Campaign" c
       LEFT JOIN "Click" cl ON cl."campaignId" = c.id AND cl."createdAt" BETWEEN ${range.from} AND ${range.to}
       LEFT JOIN "Conversion" cv ON cv."campaignId" = c.id AND cv."createdAt" BETWEEN ${range.from} AND ${range.to}
-      WHERE 1 = 1 ${Prisma.raw(campaignFilter)}
+      WHERE 1 = 1 ${campaignFilter}
     `;
 
     const row = rows[0] ?? {

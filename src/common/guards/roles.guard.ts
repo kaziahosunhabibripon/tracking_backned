@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { GqlExecutionContext } from '@nestjs/graphql';
+import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
 import { UserRole } from '@prisma/client';
 import {
   IS_PUBLIC_KEY,
@@ -98,9 +98,13 @@ export class RolesGuard implements CanActivate {
   }
 
   private getUser(context: ExecutionContext): AuthenticatedUser | undefined {
-    const ctx = GqlExecutionContext.create(context).getContext<{
-      req?: { user?: AuthenticatedUser };
-    }>();
-    return ctx.req?.user;
+    if (context.getType<GqlContextType>() === 'graphql') {
+      const ctx = GqlExecutionContext.create(context).getContext<{
+        req?: { user?: AuthenticatedUser };
+      }>();
+      return ctx.req?.user;
+    }
+    return context.switchToHttp().getRequest<{ user?: AuthenticatedUser }>()
+      .user;
   }
 }
