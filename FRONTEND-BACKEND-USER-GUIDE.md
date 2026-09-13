@@ -376,7 +376,8 @@ Allowed file types:
 - JPEG/JPG
 - WEBP
 - GIF
-- SVG
+
+SVG is intentionally **not** allowed: `GET /files/:name` serves uploads publicly and unauthenticated, and an SVG can carry `<script>`/event-handler payloads — allowing it would be a stored-XSS vector.
 
 ## Backend Data Model
 

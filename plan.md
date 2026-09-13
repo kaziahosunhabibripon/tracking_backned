@@ -726,13 +726,17 @@ Headers: `X-Signature: <hmac-sha256(body, POSTBACK_SECRET)>`
 
 ### Phase 7 — Notifications, Settings, Billing (Stripe)
 
-- [x] `notifications` (broadcast + per-user + mark-read + bell badge).
+- [x] `notifications` (broadcast + mark-read + bell badge).
+- [ ] `notifications` per-user delivery — `Notification` has no recipient column yet, deliberately deferred pending a schema migration (see GAP-013 in GAP-ANALYSIS.md).
 - [x] `settings/network`, `settings/system`, `settings/email`, `settings/preference`.
 - [x] `faqs` + `signup-questions` (consumed by traking-web signup form).
-- [x] `login-logs`, `support-tickets`, `roles-permissions`.
+- [x] `login-logs`, `support-tickets`.
+- [x] `roles-permissions` CRUD — note: not yet wired into `RolesGuard`, so granting/revoking a permission has no effect on authorization yet (deliberately deferred, needs a product/architecture decision; see GAP-002 in GAP-ANALYSIS.md).
 - [x] `billing/plans` (public — `traking-web/pricing`).
-- [x] `billing/subscription` (current + change plan + cancel).
-- [x] `billing/payment-methods` (list/add/delete/set-default).
+- [x] `billing/subscription` (current — `mySubscription` query only).
+- [ ] `billing/subscription` change-plan / cancel mutations — not implemented (see GAP-ANALYSIS.md).
+- [x] `billing/payment-methods` (`myPaymentMethods` query only).
+- [ ] `billing/payment-methods` add/delete/set-default mutations — not implemented (see GAP-ANALYSIS.md).
 - [x] `billing/invoices` (history).
 - [x] `billing/webhook.controller.ts` — `POST /stripe/webhook` (REST, public, throttler-disabled, raw body).
 - [x] Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_PATH`.
