@@ -5,6 +5,7 @@ import { Roles, RolesExact } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import {
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '../../common/errors/app.exception';
@@ -114,8 +115,12 @@ export class AdvertisersResolver {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER)
   @Mutation(() => Advertiser, { name: 'updateAdvertiser' })
   async update(
+    @CurrentUser() user: AuthenticatedUser,
     @Args('input') input: UpdateAdvertiserInput,
   ): Promise<Advertiser> {
+    const existing = await this.advertisersService.findById(input.id);
+    if (!existing) throw new NotFoundException('Advertiser not found.');
+    this.assertCanWrite(user, existing);
     const adv = await this.advertisersService.update(input);
     return this.advertisersService.toDto(adv);
   }
@@ -127,5 +132,24 @@ export class AdvertisersResolver {
   ): Promise<Advertiser> {
     const adv = await this.advertisersService.softDelete(id);
     return this.advertisersService.toDto(adv);
+  }
+
+  /**
+   * SUPER_ADMIN/ADMIN can write any advertiser. A MANAGER can only write
+   * advertisers assigned to them (`Advertiser.managerId`) — mirrors
+   * CampaignsResolver.assertCanWrite. `softDeleteAdvertiser` doesn't need
+   * this: MANAGER isn't in its @Roles list at all.
+   */
+  private assertCanWrite(
+    user: AuthenticatedUser,
+    advertiser: { managerId: string | null },
+  ): void {
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
+      return;
+    }
+    if (user.role === UserRole.MANAGER && advertiser.managerId === user.sub) {
+      return;
+    }
+    throw new ForbiddenException('Not allowed to modify this advertiser.');
   }
 }
