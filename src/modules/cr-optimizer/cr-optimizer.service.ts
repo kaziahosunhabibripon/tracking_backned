@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { NotFoundException } from '../../common/errors/app.exception';
 import {
   CreateCrExperimentInput,
   UpdateCrExperimentInput,
@@ -25,15 +27,25 @@ export class CrOptimizerService {
   }
 
   async update(id: string, input: UpdateCrExperimentInput) {
-    return this.prisma.crExperiment.update({
-      where: { id },
-      data: {
-        name: input.name,
-        description: input.description,
-        status: input.status,
-        metadata: input.metadata,
-      },
-    });
+    try {
+      return await this.prisma.crExperiment.update({
+        where: { id },
+        data: {
+          name: input.name,
+          description: input.description,
+          status: input.status,
+          metadata: input.metadata,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('CR experiment not found.');
+      }
+      throw err;
+    }
   }
 
   async findByOffer(offerId: string) {
@@ -48,6 +60,16 @@ export class CrOptimizerService {
   }
 
   async remove(id: string) {
-    return this.prisma.crExperiment.delete({ where: { id } });
+    try {
+      return await this.prisma.crExperiment.delete({ where: { id } });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('CR experiment not found.');
+      }
+      throw err;
+    }
   }
 }

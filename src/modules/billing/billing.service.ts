@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { PlanInterval } from '@prisma/client';
+import { Prisma, PlanInterval } from '@prisma/client';
+import {
+  ConflictException,
+  NotFoundException,
+} from '../../common/errors/app.exception';
 import { CreatePlanInput, UpdatePlanInput } from './dto/plan.dto';
 
 @Injectable()
@@ -11,31 +15,57 @@ export class BillingService {
 
   async createPlan(input: CreatePlanInput) {
     this.logger.log(`Creating plan: ${input.name}`);
-    return this.prisma.plan.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        price: input.price,
-        interval: input.interval as PlanInterval,
-        stripePriceId: input.stripePriceId,
-        features: input.features,
-      },
-    });
+    try {
+      return await this.prisma.plan.create({
+        data: {
+          name: input.name,
+          description: input.description,
+          price: input.price,
+          interval: input.interval as PlanInterval,
+          stripePriceId: input.stripePriceId,
+          features: input.features,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'A plan with this Stripe price ID already exists.',
+        );
+      }
+      throw err;
+    }
   }
 
   async updatePlan(id: string, input: UpdatePlanInput) {
-    return this.prisma.plan.update({
-      where: { id },
-      data: {
-        name: input.name,
-        description: input.description,
-        price: input.price,
-        interval: input.interval as PlanInterval,
-        stripePriceId: input.stripePriceId,
-        features: input.features,
-        isActive: input.isActive,
-      },
-    });
+    try {
+      return await this.prisma.plan.update({
+        where: { id },
+        data: {
+          name: input.name,
+          description: input.description,
+          price: input.price,
+          interval: input.interval as PlanInterval,
+          stripePriceId: input.stripePriceId,
+          features: input.features,
+          isActive: input.isActive,
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code === 'P2025') {
+          throw new NotFoundException('Plan not found.');
+        }
+        if (err.code === 'P2002') {
+          throw new ConflictException(
+            'A plan with this Stripe price ID already exists.',
+          );
+        }
+      }
+      throw err;
+    }
   }
 
   async findPlans() {

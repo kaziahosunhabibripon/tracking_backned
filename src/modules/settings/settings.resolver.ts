@@ -55,11 +55,7 @@ export class SettingsResolver {
   @RolesExact(UserRole.SUPER_ADMIN)
   @Mutation(() => Boolean)
   async deleteSetting(@Args('key') key: string): Promise<boolean> {
-    try {
-      await this.settingsService.remove(key);
-      return true;
-    } catch {
-      return false;
-    }
+    await this.settingsService.remove(key);
+    return true;
   }
 }

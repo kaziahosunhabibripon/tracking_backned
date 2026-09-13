@@ -770,7 +770,7 @@ type Query {
   advertisers(filter: AdvertiserFilterInput, skip: Int! = 0, take: Int! = 20): [Advertiser!]!
   advertisersCount(filter: AdvertiserFilterInput): Int!
   affiliate(id: String!): Affiliate
-  affiliateGroup(id: String!): AffiliateGroup
+  affiliateGroup(id: String!): AffiliateGroup!
   affiliateGroups: [AffiliateGroup!]!
   affiliatePostbackLogs(cursor: String, limit: Float, range: DateRangeInput): [AffiliatePostbackLogRecord!]!
   affiliateReports(cursor: String, limit: Float, range: DateRangeInput): [AffiliateReportRecord!]!
@@ -781,7 +781,7 @@ type Query {
   campaignsCount(filter: CampaignFilterInput, my: Boolean): Int!
   clickLogReports(cursor: String, limit: Float, range: DateRangeInput): [ClickLogRecord!]!
   conversionReports(cursor: String, limit: Float, range: DateRangeInput): [ConversionReportRecord!]!
-  faq(id: String!): Faq
+  faq(id: String!): Faq!
   faqs(publishedOnly: Boolean): [Faq!]!
   fraudReports(cursor: String, limit: Float, range: DateRangeInput): [AffiliateFraudReportRecord!]!
   loginLogs(limit: Float): [LoginLog!]!

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { NotFoundException } from '../../common/errors/app.exception';
 import {
   CreateSignupQuestionInput,
   UpdateSignupQuestionInput,
@@ -26,17 +28,27 @@ export class SignupQuestionsService {
   }
 
   async update(id: string, input: UpdateSignupQuestionInput) {
-    return this.prisma.signupQuestion.update({
-      where: { id },
-      data: {
-        label: input.label,
-        type: input.type,
-        options: input.options,
-        required: input.required,
-        sortOrder: input.sortOrder,
-        isActive: input.isActive,
-      },
-    });
+    try {
+      return await this.prisma.signupQuestion.update({
+        where: { id },
+        data: {
+          label: input.label,
+          type: input.type,
+          options: input.options,
+          required: input.required,
+          sortOrder: input.sortOrder,
+          isActive: input.isActive,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Signup question not found.');
+      }
+      throw err;
+    }
   }
 
   async findAll() {
@@ -50,6 +62,16 @@ export class SignupQuestionsService {
   }
 
   async remove(id: string) {
-    return this.prisma.signupQuestion.delete({ where: { id } });
+    try {
+      return await this.prisma.signupQuestion.delete({ where: { id } });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Signup question not found.');
+      }
+      throw err;
+    }
   }
 }

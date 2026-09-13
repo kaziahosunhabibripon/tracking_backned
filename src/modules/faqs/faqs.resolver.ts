@@ -4,6 +4,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { RolesExact } from '../../common/decorators/roles.decorator';
 import { GqlJwtAuthGuard } from '../../modules/auth/guards/gql-jwt-auth.guard';
 import { UserRole } from '@prisma/client';
+import { NotFoundException } from '../../common/errors/app.exception';
 import { FaqsService } from './faqs.service';
 import { Faq } from './entities/faq.entity';
 import { CreateFaqInput, UpdateFaqInput } from './dto/faq.dto';
@@ -23,9 +24,11 @@ export class FaqsResolver {
   }
 
   @Public()
-  @Query(() => Faq, { nullable: true })
+  @Query(() => Faq)
   async faq(@Args('id') id: string) {
-    return this.faqsService.findOne(id);
+    const faq = await this.faqsService.findOne(id);
+    if (!faq) throw new NotFoundException('FAQ not found.');
+    return faq;
   }
 
   @UseGuards(GqlJwtAuthGuard)

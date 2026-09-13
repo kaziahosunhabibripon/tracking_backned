@@ -3,6 +3,7 @@ import { UseGuards } from '@nestjs/common';
 import { RolesExact } from '../../common/decorators/roles.decorator';
 import { GqlJwtAuthGuard } from '../../modules/auth/guards/gql-jwt-auth.guard';
 import { UserRole } from '@prisma/client';
+import { NotFoundException } from '../../common/errors/app.exception';
 import { CrOptimizerService } from './cr-optimizer.service';
 import { CrExperiment } from './entities/cr-experiment.entity';
 import {
@@ -21,9 +22,11 @@ export class CrOptimizerResolver {
   }
 
   @UseGuards(GqlJwtAuthGuard)
-  @Query(() => CrExperiment, { nullable: true })
+  @Query(() => CrExperiment)
   async crExperiment(@Args('id') id: string) {
-    return this.crOptimizerService.findOne(id);
+    const experiment = await this.crOptimizerService.findOne(id);
+    if (!experiment) throw new NotFoundException('CR experiment not found.');
+    return experiment;
   }
 
   @UseGuards(GqlJwtAuthGuard)

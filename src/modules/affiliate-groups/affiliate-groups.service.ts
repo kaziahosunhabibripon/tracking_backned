@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import {
+  ConflictException,
+  NotFoundException,
+} from '../../common/errors/app.exception';
 import {
   CreateAffiliateGroupInput,
   UpdateAffiliateGroupInput,
@@ -25,15 +30,25 @@ export class AffiliateGroupsService {
   }
 
   async update(id: string, input: UpdateAffiliateGroupInput) {
-    return this.prisma.affiliateGroup.update({
-      where: { id },
-      data: {
-        name: input.name,
-        description: input.description,
-        budget: input.budget,
-        tags: input.tags,
-      },
-    });
+    try {
+      return await this.prisma.affiliateGroup.update({
+        where: { id },
+        data: {
+          name: input.name,
+          description: input.description,
+          budget: input.budget,
+          tags: input.tags,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Affiliate group not found.');
+      }
+      throw err;
+    }
   }
 
   async findAll() {
@@ -51,23 +66,45 @@ export class AffiliateGroupsService {
   }
 
   async addMember(input: AddGroupMemberInput) {
-    return this.prisma.affiliateGroupMember.create({
-      data: {
-        groupId: input.groupId,
-        affiliateId: input.affiliateId,
-        role: input.role ?? 'MEMBER',
-      },
-    });
+    try {
+      return await this.prisma.affiliateGroupMember.create({
+        data: {
+          groupId: input.groupId,
+          affiliateId: input.affiliateId,
+          role: input.role ?? 'MEMBER',
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'This affiliate is already a member of this group.',
+        );
+      }
+      throw err;
+    }
   }
 
   async removeMember(groupId: string, affiliateId: string) {
-    return this.prisma.affiliateGroupMember.delete({
-      where: {
-        groupId_affiliateId: {
-          groupId,
-          affiliateId,
+    try {
+      return await this.prisma.affiliateGroupMember.delete({
+        where: {
+          groupId_affiliateId: {
+            groupId,
+            affiliateId,
+          },
         },
-      },
-    });
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Group membership not found.');
+      }
+      throw err;
+    }
   }
 }

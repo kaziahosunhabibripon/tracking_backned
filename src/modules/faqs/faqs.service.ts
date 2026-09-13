@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { NotFoundException } from '../../common/errors/app.exception';
 import { CreateFaqInput, UpdateFaqInput } from './dto/faq.dto';
 
 @Injectable()
@@ -22,16 +24,26 @@ export class FaqsService {
   }
 
   async update(id: string, input: UpdateFaqInput) {
-    return this.prisma.faq.update({
-      where: { id },
-      data: {
-        question: input.question,
-        answer: input.answer,
-        category: input.category,
-        sortOrder: input.sortOrder,
-        isPublished: input.isPublished,
-      },
-    });
+    try {
+      return await this.prisma.faq.update({
+        where: { id },
+        data: {
+          question: input.question,
+          answer: input.answer,
+          category: input.category,
+          sortOrder: input.sortOrder,
+          isPublished: input.isPublished,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('FAQ not found.');
+      }
+      throw err;
+    }
   }
 
   async findAll(publishedOnly = false) {
@@ -46,6 +58,16 @@ export class FaqsService {
   }
 
   async remove(id: string) {
-    return this.prisma.faq.delete({ where: { id } });
+    try {
+      return await this.prisma.faq.delete({ where: { id } });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('FAQ not found.');
+      }
+      throw err;
+    }
   }
 }

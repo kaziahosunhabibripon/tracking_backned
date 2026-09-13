@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { ConflictException } from '../../common/errors/app.exception';
 import { CreateReferralInput } from './dto/referral.dto';
 
 @Injectable()
@@ -10,13 +12,23 @@ export class ReferralProgramsService {
 
   async create(input: CreateReferralInput) {
     this.logger.log(`Creating referral: ${input.code}`);
-    return this.prisma.referral.create({
-      data: {
-        referrerId: input.referrerId,
-        referredId: input.referredId,
-        code: input.code,
-      },
-    });
+    try {
+      return await this.prisma.referral.create({
+        data: {
+          referrerId: input.referrerId,
+          referredId: input.referredId,
+          code: input.code,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException('This referral code is already in use.');
+      }
+      throw err;
+    }
   }
 
   async findByCode(code: string) {

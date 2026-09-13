@@ -3,6 +3,7 @@ import { UseGuards } from '@nestjs/common';
 import { RolesExact } from '../../common/decorators/roles.decorator';
 import { GqlJwtAuthGuard } from '../../modules/auth/guards/gql-jwt-auth.guard';
 import { UserRole } from '@prisma/client';
+import { NotFoundException } from '../../common/errors/app.exception';
 import { AffiliateGroupsService } from './affiliate-groups.service';
 import {
   AffiliateGroup,
@@ -39,9 +40,11 @@ export class AffiliateGroupsResolver {
     UserRole.MANAGER,
     UserRole.STAFF,
   )
-  @Query(() => AffiliateGroup, { nullable: true })
+  @Query(() => AffiliateGroup)
   async affiliateGroup(@Args('id') id: string) {
-    return this.affiliateGroupsService.findOne(id);
+    const group = await this.affiliateGroupsService.findOne(id);
+    if (!group) throw new NotFoundException('Affiliate group not found.');
+    return group;
   }
 
   @UseGuards(GqlJwtAuthGuard)

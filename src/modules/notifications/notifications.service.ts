@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { NotFoundException } from '../../common/errors/app.exception';
 import {
   CreateNotificationInput,
   MarkNotificationReadInput,
@@ -82,6 +83,13 @@ export class NotificationsService {
   }
 
   async markRead(input: MarkNotificationReadInput, userId: string) {
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: input.notificationId },
+    });
+    if (!notification) {
+      throw new NotFoundException('Notification not found.');
+    }
+
     const existing = await this.prisma.notificationRead.findUnique({
       where: {
         notificationId_userId: {

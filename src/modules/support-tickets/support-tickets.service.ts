@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { NotFoundException } from '../../common/errors/app.exception';
 import {
   CreateSupportTicketInput,
   UpdateSupportTicketInput,
@@ -35,10 +37,20 @@ export class SupportTicketsService {
     }
     if (input.assigneeId !== undefined) data.assigneeId = input.assigneeId;
 
-    return this.prisma.supportTicket.update({
-      where: { id },
-      data,
-    });
+    try {
+      return await this.prisma.supportTicket.update({
+        where: { id },
+        data,
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Support ticket not found.');
+      }
+      throw err;
+    }
   }
 
   async findMyTickets(userId: string) {

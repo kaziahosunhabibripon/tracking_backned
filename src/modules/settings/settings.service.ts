@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { NotFoundException } from '../../common/errors/app.exception';
 import { UpsertSettingInput } from './dto/setting.dto';
 
 export interface SettingsQueryInput {
@@ -31,6 +33,16 @@ export class SettingsService {
   }
 
   async remove(key: string) {
-    return this.prisma.setting.delete({ where: { key } });
+    try {
+      return await this.prisma.setting.delete({ where: { key } });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Setting not found.');
+      }
+      throw err;
+    }
   }
 }

@@ -2,6 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { Prisma, PaymentStatus } from '@prisma/client';
 import {
+  ConflictException,
+  NotFoundException,
+} from '../../common/errors/app.exception';
+import {
   CreatePaymentTermInput,
   UpdatePaymentTermInput,
   CreateAffiliatePaymentInput,
@@ -16,25 +20,47 @@ export class AffiliatePaymentsService {
 
   async createPaymentTerm(input: CreatePaymentTermInput) {
     this.logger.log(`Creating payment term for affiliate ${input.affiliateId}`);
-    return this.prisma.paymentTerm.create({
-      data: {
-        affiliateId: input.affiliateId,
-        minPayout: input.minPayout,
-        paymentMethod: input.paymentMethod,
-        currency: input.currency ?? 'USD',
-      },
-    });
+    try {
+      return await this.prisma.paymentTerm.create({
+        data: {
+          affiliateId: input.affiliateId,
+          minPayout: input.minPayout,
+          paymentMethod: input.paymentMethod,
+          currency: input.currency ?? 'USD',
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'A payment term already exists for this affiliate.',
+        );
+      }
+      throw err;
+    }
   }
 
   async updatePaymentTerm(id: string, input: UpdatePaymentTermInput) {
-    return this.prisma.paymentTerm.update({
-      where: { id },
-      data: {
-        minPayout: input.minPayout,
-        paymentMethod: input.paymentMethod,
-        currency: input.currency,
-      },
-    });
+    try {
+      return await this.prisma.paymentTerm.update({
+        where: { id },
+        data: {
+          minPayout: input.minPayout,
+          paymentMethod: input.paymentMethod,
+          currency: input.currency,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Payment term not found.');
+      }
+      throw err;
+    }
   }
 
   async findPaymentTerms(affiliateId?: string) {
@@ -66,10 +92,20 @@ export class AffiliatePaymentsService {
     if (input.transactionId) {
       data.transactionId = input.transactionId;
     }
-    return this.prisma.affiliatePayment.update({
-      where: { id: input.paymentId },
-      data,
-    });
+    try {
+      return await this.prisma.affiliatePayment.update({
+        where: { id: input.paymentId },
+        data,
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException('Payment not found.');
+      }
+      throw err;
+    }
   }
 
   async findPayments(affiliateId?: string, status?: PaymentStatus) {
