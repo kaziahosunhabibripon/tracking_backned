@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { randomUUID } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -152,6 +153,7 @@ loadAppEnv();
         };
       },
     }),
+    ScheduleModule.forRoot(),
     MonitoringModule,
     HealthModule,
     UsersModule,

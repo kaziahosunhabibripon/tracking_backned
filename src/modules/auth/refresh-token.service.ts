@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { UnauthorizedException } from '../../common/errors/app.exception';
 import {
   generateId,
@@ -8,6 +9,9 @@ import {
 } from '../../common/utils/ids.util';
 import { durationToSeconds } from '../../common/utils/duration.util';
 import { PrismaService } from '../../database/prisma.service';
+
+/** How long a revoked row is kept around before cleanup — long enough to be useful for incident review. */
+const REVOKED_RETENTION_DAYS = 30;
 
 export interface IssuedRefreshToken {
   token: string;
@@ -122,5 +126,29 @@ export class RefreshTokenService {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  /**
+   * The table gets a row on every login and every rotation, and nothing
+   * ever removed one — deletes rows that are no longer useful: expired
+   * (whether or not they were ever revoked) or revoked long enough ago
+   * that they're past being useful for incident review.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async cleanupExpiredTokens(): Promise<void> {
+    const revokedRetentionCutoff = new Date(
+      Date.now() - REVOKED_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const { count } = await this.prisma.refreshToken.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: new Date() } },
+          { revokedAt: { lt: revokedRetentionCutoff } },
+        ],
+      },
+    });
+    if (count > 0) {
+      this.logger.log(`Cleaned up ${count} expired/stale refresh token(s).`);
+    }
   }
 }

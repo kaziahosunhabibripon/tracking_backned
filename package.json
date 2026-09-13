@@ -42,6 +42,7 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schedule": "^12.0.1",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.3",
     "@sentry/node": "^10.73.0",
@@ -118,6 +119,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(?:@nestjs/schedule)/)"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

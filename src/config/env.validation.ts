@@ -81,6 +81,19 @@ export function validateEnv(config: Record<string, unknown>) {
   assertUrlIfPresent(config.REDIS_URL, 'REDIS_URL');
   assertUrlIfPresent(config.SENTRY_DSN, 'SENTRY_DSN');
 
+  // Billing (Stripe) is optional — a missing STRIPE_SECRET_KEY is never a
+  // boot failure (see stripe-webhook.controller.ts). But a *partial*
+  // config (one key set, the other not) previously boots cleanly and only
+  // fails the first time a real webhook arrives, which is exactly the
+  // production surprise this check exists to catch at boot instead.
+  const hasStripeSecretKey = !isBlank(config.STRIPE_SECRET_KEY);
+  const hasStripeWebhookSecret = !isBlank(config.STRIPE_WEBHOOK_SECRET);
+  if (hasStripeSecretKey !== hasStripeWebhookSecret) {
+    throw new Error(
+      'STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET must be set together — billing is only fully optional when both are unset.',
+    );
+  }
+
   // Type coercion (numbers + booleans)
   const coerced: Record<string, unknown> = { ...config };
   for (const key of NUMERIC_KEYS) {
