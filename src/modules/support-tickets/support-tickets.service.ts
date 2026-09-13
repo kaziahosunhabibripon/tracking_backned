@@ -1,12 +1,21 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { NotFoundException } from '../../common/errors/app.exception';
+import {
+  BadRequestException,
+  NotFoundException,
+} from '../../common/errors/app.exception';
 import {
   CreateSupportTicketInput,
   UpdateSupportTicketInput,
 } from './dto/support-ticket.dto';
+
+const STAFF_ROLES: UserRole[] = [
+  UserRole.STAFF,
+  UserRole.MANAGER,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+];
 
 @Injectable()
 export class SupportTicketsService {
@@ -27,7 +36,7 @@ export class SupportTicketsService {
   }
 
   async update(id: string, input: UpdateSupportTicketInput) {
-    const data: any = {};
+    const data: Prisma.SupportTicketUpdateInput = {};
     if (input.priority) data.priority = input.priority;
     if (input.status) {
       data.status = input.status;
@@ -35,7 +44,12 @@ export class SupportTicketsService {
         data.resolvedAt = new Date();
       }
     }
-    if (input.assigneeId !== undefined) data.assigneeId = input.assigneeId;
+    if (input.assigneeId !== undefined) {
+      if (input.assigneeId !== null) {
+        await this.assertAssignable(input.assigneeId);
+      }
+      data.assigneeId = input.assigneeId;
+    }
 
     try {
       return await this.prisma.supportTicket.update({
@@ -68,5 +82,21 @@ export class SupportTicketsService {
 
   async findOne(id: string) {
     return this.prisma.supportTicket.findUnique({ where: { id } });
+  }
+
+  /** A ticket can only be assigned to a real, staff-roled user. */
+  private async assertAssignable(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (!user) {
+      throw new BadRequestException('assigneeId does not match any user.');
+    }
+    if (!STAFF_ROLES.includes(user.role)) {
+      throw new BadRequestException(
+        'A support ticket can only be assigned to a staff user.',
+      );
+    }
   }
 }
