@@ -176,12 +176,12 @@ describe('PostbackService', () => {
       createdAt: new Date(),
     });
     mockPrisma.conversion.findUnique.mockResolvedValue(null);
+    const tx = {
+      conversion: { create: jest.fn(() => ({ id: 'conv-new' })) },
+      campaignCap: { updateMany: jest.fn() },
+      advertiserPostbackLog: { create: jest.fn() },
+    };
     mockPrisma.$transaction.mockImplementation((cb: any) => {
-      const tx = {
-        conversion: { create: jest.fn(() => ({ id: 'conv-new' })) },
-        campaignCap: { updateMany: jest.fn() },
-        advertiserPostbackLog: { create: jest.fn() },
-      };
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
       return cb(tx);
     });
@@ -201,6 +201,10 @@ describe('PostbackService', () => {
       ok: true,
       conversionId: 'conv-new',
       deduplicated: false,
+    });
+    expect(tx.campaignCap.updateMany).toHaveBeenCalledWith({
+      where: { campaignId: 'camp-1', capType: { not: 'TOTAL' } },
+      data: { currentCount: { increment: 1 } },
     });
   });
 });
