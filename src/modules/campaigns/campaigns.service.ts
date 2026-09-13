@@ -205,7 +205,7 @@ export class CampaignsService {
   async softDelete(id: string): Promise<PrismaCampaign> {
     return this.prisma.campaign.update({
       where: { id },
-      data: { status: 'EXPIRED' },
+      data: { status: 'EXPIRED', deletedAt: new Date() },
     });
   }
 

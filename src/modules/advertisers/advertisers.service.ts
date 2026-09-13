@@ -149,7 +149,7 @@ export class AdvertisersService {
   async softDelete(id: string): Promise<PrismaAdvertiser> {
     return this.prisma.advertiser.update({
       where: { id },
-      data: { status: 'INACTIVE' },
+      data: { status: 'INACTIVE', deletedAt: new Date() },
     });
   }
 

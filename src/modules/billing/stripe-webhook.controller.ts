@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Public } from '../../common/decorators/public.decorator';
 import Stripe from 'stripe';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 
 /**
@@ -101,6 +102,21 @@ export class StripeWebhookController {
 
     this.logger.log(`Stripe event received: ${event.type}`);
 
+    if (await this.alreadyProcessed(event.id)) {
+      this.logger.log(`Stripe event ${event.id} already processed, skipping.`);
+      return { received: true };
+    }
+
+    const objectId = this.correlationObjectId(event);
+    const eventCreatedAt = new Date(event.created * 1000);
+    if (objectId && (await this.isStale(objectId, eventCreatedAt))) {
+      this.logger.warn(
+        `Stripe event ${event.id} (${event.type}) is older than an already-applied event for ${objectId} — skipping to avoid overwriting newer state.`,
+      );
+      await this.recordEvent(event, objectId, eventCreatedAt);
+      return { received: true };
+    }
+
     switch (event.type) {
       case 'checkout.session.completed':
         await this.handleCheckoutComplete(event.data.object);
@@ -121,7 +137,70 @@ export class StripeWebhookController {
         this.logger.debug(`Unhandled Stripe event type: ${event.type}`);
     }
 
+    await this.recordEvent(event, objectId, eventCreatedAt);
     return { received: true };
+  }
+
+  private async alreadyProcessed(eventId: string): Promise<boolean> {
+    const existing = await this.prisma.webhookEvent.findUnique({
+      where: { id: eventId },
+    });
+    return existing !== null;
+  }
+
+  /** The Stripe object (subscription/invoice) this event's ordering should be checked against. */
+  private correlationObjectId(event: Stripe.Event): string | null {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const subscriptionId = event.data.object.subscription;
+        return typeof subscriptionId === 'string' ? subscriptionId : null;
+      }
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        return event.data.object.id;
+      case 'invoice.payment_succeeded':
+      case 'invoice.payment_failed': {
+        const rawInvoice = event.data
+          .object as unknown as StripeInvoiceWithSubscription;
+        return typeof rawInvoice.subscription === 'string'
+          ? rawInvoice.subscription
+          : (rawInvoice.subscription?.id ?? null);
+      }
+      default:
+        return null;
+    }
+  }
+
+  /** True if an event for the same object, at or after this one's timestamp, was already applied. */
+  private async isStale(
+    objectId: string,
+    eventCreatedAt: Date,
+  ): Promise<boolean> {
+    const newerOrEqual = await this.prisma.webhookEvent.findFirst({
+      where: { objectId, eventCreatedAt: { gte: eventCreatedAt } },
+    });
+    return newerOrEqual !== null;
+  }
+
+  private async recordEvent(
+    event: Stripe.Event,
+    objectId: string | null,
+    eventCreatedAt: Date,
+  ): Promise<void> {
+    try {
+      await this.prisma.webhookEvent.create({
+        data: { id: event.id, type: event.type, objectId, eventCreatedAt },
+      });
+    } catch (err) {
+      // A concurrent duplicate delivery raced us and inserted first — fine,
+      // the outcome (recorded exactly once) is the same either way.
+      if (!(
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      )) {
+        throw err;
+      }
+    }
   }
 
   private async handleCheckoutComplete(session: Stripe.Checkout.Session) {

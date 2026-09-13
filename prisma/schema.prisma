@@ -234,6 +234,10 @@ model Advertiser {
   payoutMethod   String?
   referralCode   String?          @unique
   status         AdvertiserStatus @default(PENDING)
+  /// Set by softDelete(), separate from `status` — lets a genuine status
+  /// transition (e.g. a future auto-INACTIVE rule) stay distinguishable
+  /// from an admin deletion.
+  deletedAt      DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -307,6 +311,10 @@ model Campaign {
   icon           String?
   geo            String[]
   trafficAllowed String[]
+  /// Set by softDelete(), separate from `status` — lets a genuinely
+  /// endDate-expired campaign stay distinguishable from an admin deletion,
+  /// both of which currently set status EXPIRED.
+  deletedAt      DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -729,6 +737,26 @@ model Invoice {
 
   @@index([userId])
   @@index([stripeInvoiceId])
+}
+
+/**
+ * One row per processed Stripe webhook event — `id` is Stripe's own
+ * `event.id`, so a unique-constraint violation on insert is a natural
+ * exact-duplicate-delivery guard. `objectId` (the subscription/invoice id
+ * the event is about) + `eventCreatedAt` (Stripe's `event.created`, not
+ * our own clock) let a handler check "has a newer event for this same
+ * object already been applied?" before writing — Stripe doesn't guarantee
+ * in-order delivery, so an out-of-order update could otherwise overwrite
+ * newer state with stale data.
+ */
+model WebhookEvent {
+  id             String   @id
+  type           String
+  objectId       String?
+  eventCreatedAt DateTime
+  processedAt    DateTime @default(now())
+
+  @@index([objectId, eventCreatedAt])
 }
 
 model Faq {
