@@ -9,6 +9,9 @@ export interface RecordLoginInput {
   failureReason?: string;
 }
 
+/** Hard ceiling on `limit` args so a caller can't request an unbounded page. */
+const MAX_LIMIT = 200;
+
 @Injectable()
 export class LoginLogsService {
   private readonly logger = new Logger(LoginLogsService.name);
@@ -31,14 +34,14 @@ export class LoginLogsService {
     return this.prisma.loginLog.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: Math.min(limit, MAX_LIMIT),
     });
   }
 
   async findAll(limit = 100) {
     return this.prisma.loginLog.findMany({
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      take: Math.min(limit, MAX_LIMIT),
     });
   }
 }

@@ -47,7 +47,7 @@ export class GqlThrottlerGuard extends ThrottlerGuard {
       return Promise.resolve(true);
     }
 
-    if (requestPath.includes('/stripe/webhook')) {
+    if (requestPath.startsWith('/stripe/webhook')) {
       return Promise.resolve(true);
     }
 

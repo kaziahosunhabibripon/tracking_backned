@@ -83,6 +83,7 @@ export class AuthResolver {
   }
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Mutation(() => Boolean, {
     description: 'Revoke the current session and clear auth cookies.',
   })

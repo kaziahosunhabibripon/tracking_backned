@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import {
   Controller,
   Post,
@@ -11,6 +10,23 @@ import { ConfigService } from '@nestjs/config';
 import { Public } from '../../common/decorators/public.decorator';
 import Stripe from 'stripe';
 import { PrismaService } from '../../database/prisma.service';
+
+/**
+ * Fields this webhook reads that aren't on `Stripe.Invoice`'s typed
+ * interface for the pinned API version (`2026-08-26.dahlia`) — narrowed
+ * casts instead of a blanket `any` so a Stripe SDK/API bump can't silently
+ * widen what we trust unchecked.
+ */
+interface StripeInvoiceWithSubscription {
+  subscription?: string | { id: string } | null;
+}
+
+/** Same idea for `Stripe.Subscription`'s current-period fields and price id. */
+interface StripeSubscriptionPeriod {
+  current_period_start?: number;
+  current_period_end?: number;
+  items?: { data?: { price?: { id?: string } }[] };
+}
 
 /**
  * Stripe webhook receiver.
@@ -177,8 +193,11 @@ export class StripeWebhookController {
     invoice: Stripe.Invoice,
     status: 'PAID' | 'OPEN',
   ) {
-    const rawInvoice = invoice as any;
-    const subscriptionId = rawInvoice.subscription as string | undefined;
+    const rawInvoice = invoice as unknown as StripeInvoiceWithSubscription;
+    const subscriptionId =
+      typeof rawInvoice.subscription === 'string'
+        ? rawInvoice.subscription
+        : rawInvoice.subscription?.id;
     if (!subscriptionId) {
       this.logger.warn(
         `Invoice ${invoice.id} has no subscription — only subscription invoices are tracked, skipping.`,
@@ -236,7 +255,7 @@ export class StripeWebhookController {
     stripeSubscription: Stripe.Subscription,
     customerId: string | undefined,
   ) {
-    const sub = stripeSubscription as any;
+    const sub = stripeSubscription as unknown as StripeSubscriptionPeriod;
     const plan = await this.prisma.plan.findFirst({
       where: { stripePriceId: sub.items?.data?.[0]?.price?.id },
     });
