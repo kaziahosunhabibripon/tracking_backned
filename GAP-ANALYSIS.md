@@ -236,12 +236,13 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ## ⚪ Low
 
-### GAP-030 — Systemic lack of FK constraints to `User`
+### GAP-030 — Systemic lack of FK constraints to `User` ✅ RESOLVED
 
 **Modules:** `support-tickets`, `login-logs`, `billing` (pre-existing pattern)
 **Evidence:** `SupportTicket.userId`/`assigneeId`, `LoginLog.userId`, `Subscription.userId`, `PaymentMethod.userId` are all plain UUID columns with no foreign key to `User`.
 **Impact:** Referential integrity is enforced only in application code, if at all; an orphaned row (deleted user) is silently possible.
 **Fix:** Not a Phase-7 regression specifically — worth a dedicated pass across the schema rather than a one-off fix.
+**Resolution (2026-09-13):** Did the dedicated pass (migration `add_fk_constraints_to_user`) — also caught `Invoice.userId`/`subscriptionId`, which had the same gap but weren't in this entry's original evidence list. `onDelete: Cascade` on owned records (login logs, tickets, subscriptions, payment methods, invoices), `SetNull` on `SupportTicket.assignee` and `Invoice.subscription` so those survive the referenced row going away. No orphaned rows existed, so it applied clean with no manual data fix needed.
 
 ### GAP-031 — Stripe webhook path match uses substring instead of exact/prefix ✅ RESOLVED
 
@@ -284,16 +285,15 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 | 🔴 Critical | 2      | 2                             |
 | 🟠 High     | 12     | 12                            |
 | 🟡 Medium   | 14     | 10 (all but GAP-011, GAP-023) |
-| ⚪ Low      | 5      | 4 (all but GAP-030)           |
-| **Total**   | **33** | **28**                        |
+| ⚪ Low      | 5      | 5                             |
+| **Total**   | **33** | **29**                        |
 
 **Resolved 2026-09-06:** GAP-001 (Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, 027 (16 marked ✅ above — GAP-027 wasn't in the original 33-count, it was found and fixed as a bonus alongside GAP-009).
-**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-031, GAP-032, GAP-033, GAP-034.
+**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-030, GAP-031, GAP-032, GAP-033, GAP-034.
 
 **Deferred — needs a product/architecture decision, not a mechanical fix**: GAP-023 (manager-scoping to "advertisers I manage" — may be intentional, needs confirmation).
 **Deferred — large feature build, not a "fix"**: GAP-011 (Stripe checkout/subscription-management mutations).
-**Deferred deliberately**: GAP-030 (FK constraints to `User`) — touches 4 models at once; the entry itself calls for a dedicated pass rather than a one-off.
 
-Only 3 gaps remain open, none Critical or High: GAP-011, GAP-023, GAP-030.
+Only 2 gaps remain open, neither Critical nor High, both genuinely needing a decision from the project owner rather than more mechanical work: GAP-011, GAP-023.
 
 **Also resolved since the previous review pass:** the 8-way duplicated reports-resolver/service pattern has been refactored into a shared `paginatedReport` helper in `admin-reports.service.ts`.
