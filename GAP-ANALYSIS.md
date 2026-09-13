@@ -90,12 +90,13 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Impact:** A SUPER_ADMIN/ADMIN gets a 403 attempting to moderate or fix any campaign — there is currently no way for staff to intervene on a campaign at all, despite the code being written with that intent.
 **Fix:** Change the decorator to `@RolesExact(UserRole.ADVERTISER, UserRole.ADMIN, UserRole.SUPER_ADMIN)` (or add `@Roles(UserRole.ADMIN)` alongside) so the existing `assertCanWrite` logic actually gets to run.
 
-### GAP-011 — Billing subscription/payment-method mutations don't exist
+### GAP-011 — Billing subscription/payment-method mutations don't exist ✅ RESOLVED
 
 **Module:** `billing`
 **Evidence:** `plan.md` checks off subscription (current/change/cancel) and payment-methods (list/add/delete/set-default) as done. Repo-wide grep for `cancelSubscription`, `changePlan`, `checkoutSession`, `addPaymentMethod`, etc. returns zero matches. Only `createPlan`/`updatePlan` (staff-only) exist.
 **Impact:** No user can actually subscribe, change plan, cancel, or manage a payment method through this API today — every `Subscription`/`PaymentMethod` row can only be written by the Stripe webhook, meaning nothing can create the initial state either.
 **Fix:** Either implement Stripe Checkout session creation + a customer portal / cancel mutation, or correct `plan.md` to reflect actual status so the gap isn't hidden from planning.
+**Resolution (2026-09-13):** Took the first option — but as 2 mutations, not 6. `createCheckoutSession` (new subscription, rejects if one already exists) and `createBillingPortalSession` (change-plan/cancel/payment-methods/invoices, all via Stripe's hosted Billing Portal) — no `changePlan`/`cancelSubscription`/`addPaymentMethod`/`deletePaymentMethod`/`setDefaultPaymentMethod` mutations were built, deliberately: the portal already covers all of that without the backend ever touching raw payment data. Both mutations validate their redirect URL against the existing `FRONTEND_URL` CORS allow-list rather than a new env var. Extracted a shared `StripeClientService` (previously inlined only in the webhook controller) so the "billing is optional" handling isn't duplicated. See `FRONTEND-BACKEND-USER-GUIDE.md`'s new "Billing / Subscription Flow" section for the frontend-facing contract.
 
 ### GAP-012 — Invoices can never be created, only updated ✅ RESOLVED
 
@@ -281,17 +282,17 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ## Summary
 
-| Severity    | Count  | Resolved             |
-| ----------- | ------ | -------------------- |
-| 🔴 Critical | 2      | 2                    |
-| 🟠 High     | 12     | 12                   |
-| 🟡 Medium   | 14     | 11 (all but GAP-011) |
-| ⚪ Low      | 5      | 5                    |
-| **Total**   | **33** | **30**               |
+| Severity    | Count  | Resolved |
+| ----------- | ------ | -------- |
+| 🔴 Critical | 2      | 2        |
+| 🟠 High     | 12     | 12       |
+| 🟡 Medium   | 14     | 14       |
+| ⚪ Low      | 5      | 5        |
+| **Total**   | **33** | **33**   |
+
+All 33 gaps resolved.
 
 **Resolved 2026-09-06:** GAP-001 (Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, 027 (16 marked ✅ above — GAP-027 wasn't in the original 33-count, it was found and fixed as a bonus alongside GAP-009).
-**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-023, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-030, GAP-031, GAP-032, GAP-033, GAP-034.
-
-**Deferred — large feature build, not a "fix"**: GAP-011 (Stripe checkout/subscription-management mutations) — the only gap still open, and not Critical or High.
+**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-011, GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-023, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-030, GAP-031, GAP-032, GAP-033, GAP-034.
 
 **Also resolved since the previous review pass:** the 8-way duplicated reports-resolver/service pattern has been refactored into a shared `paginatedReport` helper in `admin-reports.service.ts`.
