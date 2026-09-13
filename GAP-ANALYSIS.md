@@ -235,33 +235,37 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Impact:** Referential integrity is enforced only in application code, if at all; an orphaned row (deleted user) is silently possible.
 **Fix:** Not a Phase-7 regression specifically — worth a dedicated pass across the schema rather than a one-off fix.
 
-### GAP-031 — Stripe webhook path match uses substring instead of exact/prefix
+### GAP-031 — Stripe webhook path match uses substring instead of exact/prefix ✅ RESOLVED
 
 **Module:** `auth` (throttler guard)
 **Evidence:** `gql-throttler.guard.ts`'s Stripe-webhook bypass checks `requestPath.includes('/stripe/webhook')`.
 **Impact:** Low — only affects the throttling exemption, not authentication. A crafted path containing that substring would dodge rate-limiting only.
 **Fix:** Use an exact or prefix match instead of `includes`.
+**Resolution (2026-09-13):** Changed to `startsWith`.
 
-### GAP-032 — `stripe-webhook.controller.ts` uses several `any` casts
+### GAP-032 — `stripe-webhook.controller.ts` uses several `any` casts ✅ RESOLVED
 
 **Module:** `billing`
 **Evidence:** `invoice as any`, `stripeSubscription as any` used to reach Stripe SDK fields not on the typed interfaces for the pinned API version.
 **Impact:** Bypasses type safety on `current_period_start`/`current_period_end`-style fields; works today but is fragile to a Stripe SDK/API version bump.
 **Fix:** Narrow with a local interface for the specific fields accessed, instead of a blanket `any`.
+**Resolution (2026-09-13):** Added `StripeInvoiceWithSubscription`/`StripeSubscriptionPeriod` local interfaces for just the fields read; removed the file's now-unneeded blanket eslint-disable for unsafe-assignment/unsafe-member-access.
 
-### GAP-033 — `login-logs` list queries accept an unbounded `limit`
+### GAP-033 — `login-logs` list queries accept an unbounded `limit` ✅ RESOLVED
 
 **Module:** `login-logs`
 **Evidence:** `@Args('limit', { type: () => Number, nullable: true })` has no upper-bound validation; passed straight through to Prisma's `take`.
 **Impact:** A caller can request an arbitrarily large page.
 **Fix:** Clamp server-side (e.g. `Math.min(limit ?? 50, 200)`).
+**Resolution (2026-09-13):** Added a `MAX_LIMIT = 200` clamp in `findForUser`/`findAll`.
 
-### GAP-034 — `auth` logout mutation is the only public auth mutation without `@Throttle`
+### GAP-034 — `auth` logout mutation is the only public auth mutation without `@Throttle` ✅ RESOLVED
 
 **Module:** `auth`
 **Evidence:** `signIn`, `refreshSession`, `registerAffiliate` all carry `@Throttle`; `logout` doesn't.
 **Impact:** Negligible on its own (logout has no real abuse value), just an unexplained inconsistency worth a one-line fix for consistency.
 **Fix:** Add the same throttle decorator for consistency.
+**Resolution (2026-09-13):** Added `@Throttle(AUTH_THROTTLE)`.
 
 ---
 
@@ -272,14 +276,14 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 | 🔴 Critical | 2      | 2                    |
 | 🟠 High     | 12     | 12                   |
 | 🟡 Medium   | 14     | 2 (GAP-016, GAP-021) |
-| ⚪ Low      | 5      | 0                    |
-| **Total**   | **33** | **16**               |
+| ⚪ Low      | 5      | 4 (GAP-031–034)      |
+| **Total**   | **33** | **20**               |
 
 **Resolved 2026-09-06:** GAP-001 (Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, 027 (16 marked ✅ above — GAP-027 wasn't in the original 33-count, it was found and fixed as a bonus alongside GAP-009).
-**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013 (schema migration + rewrite), GAP-016 (input validation, 13 modules).
+**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013 (schema migration + rewrite), GAP-016 (input validation, 13 modules), GAP-031, GAP-032, GAP-033, GAP-034 (all one-off mechanical fixes).
 
 **Deferred — needs a product/architecture decision, not a mechanical fix**: GAP-023 (manager-scoping to "advertisers I manage" — may be intentional, needs confirmation).
 **Deferred — large feature build, not a "fix"**: GAP-011 (Stripe checkout/subscription-management mutations).
-**Not yet started**: GAP-017, 018, 022, 024, 025, 026 (partially: DTO-level `assigneeId` format is now validated, but the service still types its update payload `any` and doesn't check the assignee actually exists), 028, 029, 030, 031, 032, 033, 034.
+**Not yet started**: GAP-017, 018, 022, 024, 025, 026 (partially: DTO-level `assigneeId` format is now validated, but the service still types its update payload `any` and doesn't check the assignee actually exists), 028, 029, 030 (deliberately — see its entry: touches 4 models at once, the entry itself calls for a dedicated pass rather than a one-off).
 
 **Also resolved since the previous review pass:** the 8-way duplicated reports-resolver/service pattern has been refactored into a shared `paginatedReport` helper in `admin-reports.service.ts`.
