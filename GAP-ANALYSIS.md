@@ -9,6 +9,8 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 **Update (2026-09-06, same day):** GAP-001 (fixed by Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, and 027 are now fixed and verified (typecheck, lint, full test suite, and a real app boot with `npm run start` against a local Postgres all pass — the app previously failed to boot at all due to a missing module import introduced by the GAP-001 fix, also caught and fixed here). Remaining open: GAP-002, 011, 013, 016–018, 022–026, 028–034 — see notes on each for why they were deferred (schema migration required, or a product/architecture decision needed, or a genuinely large feature build).
 
+**Update (2026-09-13):** GAP-013 (per-user notification recipient — schema migration applied, service logic rewritten, tested, verified with a real app boot) and GAP-016 (input validation — done across 13 modules, a superset of the 7 listed: also offers, notifications, billing, settings, cr-optimizer) are now resolved. GAP-002 resolved via the documented fallback option — `RolesGuard` still doesn't read `RolePermission` (that still needs a real product decision), but the module, its 4 queries/mutations, and the guard itself now carry explicit GraphQL descriptions and code comments saying so, so it can no longer be mistaken for working. Also fixed in this pass, found during unrelated work rather than by a review: a SQL-injection vector in 3 reports services (`overview`/`top-campaigns`/`performance` — `advertiserId` was interpolated into `Prisma.raw()`), a broken `RolesGuard`/`@CurrentUser()` auth-context bug on REST routes, and a refresh-token leak into the GraphQL JSON response body (`AuthPayload.refreshToken` was a queryable field alongside the httpOnly cookie).
+
 ---
 
 ## 🔴 Critical
@@ -31,12 +33,13 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ## 🟠 High
 
-### GAP-002 — `role-permissions` CRUD has zero effect on authorization
+### GAP-002 — `role-permissions` CRUD has zero effect on authorization ✅ RESOLVED (via labeling)
 
 **Module:** `role-permissions`
 **Evidence:** `src/common/guards/roles.guard.ts` only ever reads the `ROLE_RANK` map and `@Roles`/`@RolesExact` decorator metadata. Repo-wide grep confirms `RolePermission` is referenced only inside the `role-permissions` module and its own migration/schema — never inside the guard or any other resolver.
 **Impact:** Granting or revoking a "permission" via `createRolePermission`/`deleteRolePermission` does nothing to what any user can actually do. This can be mistaken for a working fine-grained permission system by anyone (dev or admin) who doesn't read the guard code.
 **Fix:** Either wire `RolePermission` lookups into `RolesGuard` (real feature) or remove/clearly label the module as unimplemented until it is.
+**Resolution (2026-09-13):** Took the labeling option, not the wiring option — `RolesGuard` genuinely still doesn't read this table. Real enforcement needs a product decision first (permission string format; additive-to vs. replacement-of the existing `@Roles`/`@RolesExact` rank system; which endpoints it should even apply to) that shouldn't be made unilaterally. Added GraphQL `description`s to the entity and all 4 queries/mutations, plus code comments on the entity, resolver, and `roles.guard.ts` itself, all stating plainly that this CRUD has no runtime effect yet.
 
 ### GAP-003 — Login audit trail never receives writes ✅ RESOLVED
 
@@ -101,12 +104,13 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Impact:** `myInvoices` will return empty forever for real Stripe-driven subscriptions.
 **Fix:** Add a handler for the invoice-creation event that `upsert`s by `stripeInvoiceId`, or switch the existing handlers to `upsert`.
 
-### GAP-013 — Per-user notifications have no data path to their recipient
+### GAP-013 — Per-user notifications have no data path to their recipient ✅ RESOLVED
 
 **Module:** `notifications`
 **Evidence:** `Notification` has only a `broadcast: Boolean` flag, no target-user field. `CreateNotificationInput` has no `userId`/`recipientIds`. `findAll`'s non-unread branch requires a `NotificationRead` row to already exist before a notification shows up at all.
 **Impact:** A "personal" (`broadcast: false`) notification can never be delivered/seen by its intended recipient — the feature is non-functional despite `plan.md` marking "broadcast + per-user" as done.
 **Fix:** Add a recipient relation (either a `userId` column for 1:1, or a join table for multi-recipient) and have `create()` populate it.
+**Resolution (2026-09-13):** Added a nullable `Notification.userId` FK (migration `20260913105652_add_notification_recipient`). `create()` now requires either `broadcast: true` or a `userId`. Also fixed a related latent bug while rewriting this: unread counting previously only counted notifications that already had a `NotificationRead` row, so anything never touched — the common case — silently didn't count as unread; `findUnreadCount`/`markAllRead` now compute visibility (broadcast OR own) directly instead. Covered by a new `notifications.service.spec.ts` (this logic had zero test coverage before).
 
 ### GAP-014 — Pre-auth content (FAQs, signup questions, plans) requires a JWT ✅ RESOLVED
 
@@ -135,12 +139,13 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ### GAP-015 _(reserved — folded into GAP-014, kept for numbering continuity)_
 
-### GAP-016 — Missing input validation across several new modules
+### GAP-016 — Missing input validation across several new modules ✅ RESOLVED
 
 **Modules:** `affiliate-groups`, `affiliate-payments`, `referral-programs`, `role-permissions`, `faqs`, `signup-questions`, `support-tickets`
 **Evidence:** None of these modules' DTOs carry class-validator decorators, unlike `auth`/`campaigns`/`advertisers` (which use dozens). Since the global `ValidationPipe` only enforces declared constraints, undecorated fields accept anything — empty strings, negative numbers, non-numeric text into `Decimal` fields, self-referential IDs, etc.
 **Impact:** Bad data reaches Prisma and fails with opaque, unfriendly errors instead of clean 400-style GraphQL validation errors — or in some cases (e.g. `referrerId === referredId`) is accepted outright with no error at all.
 **Fix:** Add `@IsUUID`/`@IsNotEmpty`/`@IsNumberString`/`@MaxLength` etc. to bring these DTOs to parity with the rest of the codebase. This is mechanical, high-value, low-risk work — a good first PR.
+**Resolution (2026-09-13):** Done across all 7 listed modules, plus `offers`, `notifications`, `billing`, `settings`, `cr-optimizer` (13 total). Alongside this, `findOne`/`update`/`delete`-style methods across these modules now throw typed `NotFoundException`/`ConflictException` instead of returning `null` silently or leaking a raw Prisma `P2025`/`P2002` error as an opaque 500 (the same review that flagged this also flagged that as a separate, related gap not in the original GAP-xxx numbering).
 
 ### GAP-017 — No admin CRUD for users
 
@@ -262,19 +267,19 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ## Summary
 
-| Severity    | Count  | Resolved    |
-| ----------- | ------ | ----------- |
-| 🔴 Critical | 2      | 2           |
-| 🟠 High     | 12     | 10          |
-| 🟡 Medium   | 14     | 1 (GAP-021) |
-| ⚪ Low      | 5      | 0           |
-| **Total**   | **33** | **13**      |
+| Severity    | Count  | Resolved             |
+| ----------- | ------ | -------------------- |
+| 🔴 Critical | 2      | 2                    |
+| 🟠 High     | 12     | 12                   |
+| 🟡 Medium   | 14     | 2 (GAP-016, GAP-021) |
+| ⚪ Low      | 5      | 0                    |
+| **Total**   | **33** | **16**               |
 
 **Resolved 2026-09-06:** GAP-001 (Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, 027 (16 marked ✅ above — GAP-027 wasn't in the original 33-count, it was found and fixed as a bonus alongside GAP-009).
+**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-013 (schema migration + rewrite), GAP-016 (input validation, 13 modules).
 
-**Deferred — needs a schema migration** (avoided in this pass to not collide with concurrent schema work): GAP-013.
-**Deferred — needs a product/architecture decision, not a mechanical fix**: GAP-002, GAP-023.
-**Deferred — large feature build, not a "fix"**: GAP-011.
-**Not yet started**: GAP-016, 017, 018, 022, 024, 025, 026, 028, 029, 030, 031, 032, 033, 034.
+**Deferred — needs a product/architecture decision, not a mechanical fix**: GAP-023 (manager-scoping to "advertisers I manage" — may be intentional, needs confirmation).
+**Deferred — large feature build, not a "fix"**: GAP-011 (Stripe checkout/subscription-management mutations).
+**Not yet started**: GAP-017, 018, 022, 024, 025, 026 (partially: DTO-level `assigneeId` format is now validated, but the service still types its update payload `any` and doesn't check the assignee actually exists), 028, 029, 030, 031, 032, 033, 034.
 
 **Also resolved since the previous review pass:** the 8-way duplicated reports-resolver/service pattern has been refactored into a shared `paginatedReport` helper in `admin-reports.service.ts`.
