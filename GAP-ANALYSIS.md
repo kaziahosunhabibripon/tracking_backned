@@ -1,6 +1,6 @@
 # Tracking Backend — Gap Analysis
 
-**Reviewed:** 2026-09-06 (working tree, including uncommitted Phase 7 changes)
+**Reviewed:** 2026-09-16 (working tree, including uncommitted Phase 7 changes)
 **Companion doc:** [CURRENT-SCOPE.md](./CURRENT-SCOPE.md)
 
 Each gap below is written as a standalone issue (`GAP-xxx`) — title, severity, evidence, impact, and a recommended fix — so any of them can be copy-pasted directly into GitHub Issues or a tracker. Severity is about **exploitability/functional impact**, not effort to fix.
@@ -10,6 +10,8 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 **Update (2026-09-06, same day):** GAP-001 (fixed by Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, and 027 are now fixed and verified (typecheck, lint, full test suite, and a real app boot with `npm run start` against a local Postgres all pass — the app previously failed to boot at all due to a missing module import introduced by the GAP-001 fix, also caught and fixed here). Remaining open: GAP-002, 011, 013, 016–018, 022–026, 028–034 — see notes on each for why they were deferred (schema migration required, or a product/architecture decision needed, or a genuinely large feature build).
 
 **Update (2026-09-13):** GAP-013 (per-user notification recipient — schema migration applied, service logic rewritten, tested, verified with a real app boot) and GAP-016 (input validation — done across 13 modules, a superset of the 7 listed: also offers, notifications, billing, settings, cr-optimizer) are now resolved. GAP-002 resolved via the documented fallback option — `RolesGuard` still doesn't read `RolePermission` (that still needs a real product decision), but the module, its 4 queries/mutations, and the guard itself now carry explicit GraphQL descriptions and code comments saying so, so it can no longer be mistaken for working. Also fixed in this pass, found during unrelated work rather than by a review: a SQL-injection vector in 3 reports services (`overview`/`top-campaigns`/`performance` — `advertiserId` was interpolated into `Prisma.raw()`), a broken `RolesGuard`/`@CurrentUser()` auth-context bug on REST routes, and a refresh-token leak into the GraphQL JSON response body (`AuthPayload.refreshToken` was a queryable field alongside the httpOnly cookie).
+
+**Update (2026-09-16):** GAP-002 now properly resolved — `RolePermission` table wired into `RolesGuard` with new `@Permissions(...)` decorator, enabling dynamic, data-driven authorization managed via the role-permissions module (Settings → Roles tab). The existing `@Roles`/`@RolesExact` hierarchy remains as baseline.
 
 ---
 
@@ -33,13 +35,13 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 
 ## 🟠 High
 
-### GAP-002 — `role-permissions` CRUD has zero effect on authorization ✅ RESOLVED (via labeling)
+### GAP-002 — `role-permissions` CRUD has zero effect on authorization ✅ RESOLVED
 
 **Module:** `role-permissions`
 **Evidence:** `src/common/guards/roles.guard.ts` only ever reads the `ROLE_RANK` map and `@Roles`/`@RolesExact` decorator metadata. Repo-wide grep confirms `RolePermission` is referenced only inside the `role-permissions` module and its own migration/schema — never inside the guard or any other resolver.
 **Impact:** Granting or revoking a "permission" via `createRolePermission`/`deleteRolePermission` does nothing to what any user can actually do. This can be mistaken for a working fine-grained permission system by anyone (dev or admin) who doesn't read the guard code.
 **Fix:** Either wire `RolePermission` lookups into `RolesGuard` (real feature) or remove/clearly label the module as unimplemented until it is.
-**Resolution (2026-09-13):** Took the labeling option, not the wiring option — `RolesGuard` genuinely still doesn't read this table. Real enforcement needs a product decision first (permission string format; additive-to vs. replacement-of the existing `@Roles`/`@RolesExact` rank system; which endpoints it should even apply to) that shouldn't be made unilaterally. Added GraphQL `description`s to the entity and all 4 queries/mutations, plus code comments on the entity, resolver, and `roles.guard.ts` itself, all stating plainly that this CRUD has no runtime effect yet.
+**Resolution (2026-09-16):** Implemented the wiring option. Added `PERMISSIONS_KEY` metadata constant, `@Permissions(...)` decorator (`src/common/decorators/permissions.decorator.ts`), and updated `RolesGuard` to inject `RolePermissionsService` and check the `RolePermission` table when `@Permissions` is used on a resolver/method. The permission check is additive — if `@Permissions('campaigns:read', 'campaigns:write')` is present, the user's role must have at least one of those permissions in the `RolePermission` table. This enables data-driven authorization managed via the role-permissions module (Settings → Roles tab in the dashboard). The existing `@Roles`/`@RolesExact` hierarchy remains as a fallback/baseline.
 
 ### GAP-003 — Login audit trail never receives writes ✅ RESOLVED
 
@@ -293,6 +295,7 @@ Legend: 🔴 Critical · 🟠 High · 🟡 Medium · ⚪ Low · ✅ Resolved
 All 33 gaps resolved.
 
 **Resolved 2026-09-06:** GAP-001 (Kilo, verified), 003, 004, 005, 006, 007, 008, 009, 010, 012, 014, 019, 020, 021, 027 (16 marked ✅ above — GAP-027 wasn't in the original 33-count, it was found and fixed as a bonus alongside GAP-009).
-**Resolved 2026-09-13:** GAP-002 (via labeling, not wiring — see its entry), GAP-011, GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-023, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-030, GAP-031, GAP-032, GAP-033, GAP-034.
+**Resolved 2026-09-13:** GAP-011, GAP-013, GAP-016, GAP-017, GAP-018, GAP-022, GAP-023, GAP-024, GAP-025, GAP-026, GAP-028, GAP-029, GAP-030, GAP-031, GAP-032, GAP-033, GAP-034.
+**Resolved 2026-09-16:** GAP-002 (properly wired `RolePermission` table into `RolesGuard` with `@Permissions` decorator — see its entry).
 
 **Also resolved since the previous review pass:** the 8-way duplicated reports-resolver/service pattern has been refactored into a shared `paginatedReport` helper in `admin-reports.service.ts`.

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
   ConflictException,
@@ -41,9 +41,37 @@ export class RolePermissionsService {
 
   async findByRole(role: string) {
     return this.prisma.rolePermission.findMany({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      where: { role: role as any },
+      where: { role: role as UserRole },
     });
+  }
+
+  /**
+   * Check if a role has a specific permission.
+   * Returns true if the role has the permission, false otherwise.
+   */
+  async roleHasPermission(role: string, permission: string): Promise<boolean> {
+    const count = await this.prisma.rolePermission.count({
+      where: { role: role as UserRole, permission },
+    });
+    return count > 0;
+  }
+
+  /**
+   * Check if a role has ANY of the listed permissions.
+   * Returns true if the role has at least one of the permissions.
+   */
+  async roleHasAnyPermission(
+    role: string,
+    permissions: string[],
+  ): Promise<boolean> {
+    if (permissions.length === 0) return true;
+    const count = await this.prisma.rolePermission.count({
+      where: {
+        role: role as UserRole,
+        permission: { in: permissions },
+      },
+    });
+    return count > 0;
   }
 
   async remove(id: string) {

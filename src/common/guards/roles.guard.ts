@@ -4,6 +4,7 @@ import { GqlContextType, GqlExecutionContext } from '@nestjs/graphql';
 import { UserRole } from '@prisma/client';
 import {
   IS_PUBLIC_KEY,
+  PERMISSIONS_KEY,
   ROLES_EXACT_KEY,
   ROLES_KEY,
 } from '../constants/metadata.constants';
@@ -12,6 +13,7 @@ import {
   UnauthorizedException,
 } from '../errors/app.exception';
 import type { AuthenticatedUser } from '../../modules/auth/interfaces/authenticated-user.interface';
+import { RolePermissionsService } from '../../modules/role-permissions/role-permissions.service';
 
 /**
  * Role rank for the hierarchical gate (`@Roles(...)`).
@@ -29,17 +31,23 @@ export const ROLE_RANK: Record<UserRole, number> = {
 };
 
 /**
- * Note: this guard decides everything from `@Roles`/`@RolesExact` metadata
- * and `ROLE_RANK` below. It does not consult the `RolePermission` table —
- * that CRUD (see the role-permissions module) is not yet wired in here
- * (GAP-002 in GAP-ANALYSIS.md), so granting/revoking a row there has no
- * effect on what any user can do.
+ * Authorization guard combining:
+ * 1. Fixed role hierarchy (@Roles, @RolesExact)
+ * 2. Dynamic permissions from RolePermission table (@Permissions)
+ *
+ * The permission check is ADDITIVE — if @Permissions is used, the user's role
+ * must have at least one of the listed permissions in the RolePermission table.
+ * This enables data-driven authorization managed via the role-permissions module
+ * (Settings → Roles tab in the dashboard).
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly rolePermissionsService: RolePermissionsService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -56,10 +64,16 @@ export class RolesGuard implements CanActivate {
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
+    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
+      PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
+    // If no role or permission requirements, allow access
     if (
       (!exactRoles || exactRoles.length === 0) &&
-      (!hierarchicalRoles || hierarchicalRoles.length === 0)
+      (!hierarchicalRoles || hierarchicalRoles.length === 0) &&
+      (!requiredPermissions || requiredPermissions.length === 0)
     ) {
       return true;
     }
@@ -69,6 +83,7 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
+    // Check fixed role hierarchy first (existing behavior)
     if (exactRoles && exactRoles.length > 0) {
       if (exactRoles.includes(user.role)) {
         return true;
@@ -91,6 +106,19 @@ export class RolesGuard implements CanActivate {
         return true;
       }
       throw new ForbiddenException();
+    }
+
+    // Check dynamic permissions from RolePermission table
+    if (requiredPermissions && requiredPermissions.length > 0) {
+      const hasPermission =
+        await this.rolePermissionsService.roleHasAnyPermission(
+          user.role,
+          requiredPermissions,
+        );
+      if (!hasPermission) {
+        throw new ForbiddenException();
+      }
+      return true;
     }
 
     return true;

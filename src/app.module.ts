@@ -1,7 +1,7 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, Reflector } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -54,6 +54,7 @@ import { SignupQuestionsModule } from './modules/signup-questions/signup-questio
 import { LoginLogsModule } from './modules/login-logs/login-logs.module';
 import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
 import { RolePermissionsModule } from './modules/role-permissions/role-permissions.module';
+import { RolePermissionsService } from './modules/role-permissions/role-permissions.service';
 import './modules/affiliates/enums/affiliate.enums';
 import './modules/advertisers/enums/advertiser.enums';
 import './modules/campaigns/enums/campaign.enums';
@@ -197,7 +198,11 @@ loadAppEnv();
     },
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,
+      useFactory: (
+        reflector: Reflector,
+        rolePermissionsService: RolePermissionsService,
+      ) => new RolesGuard(reflector, rolePermissionsService),
+      inject: [Reflector, RolePermissionsService],
     },
   ],
 })

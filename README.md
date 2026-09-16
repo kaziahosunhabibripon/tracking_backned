@@ -280,6 +280,7 @@ docker compose down              # stop (add -v to also drop the postgres_data v
 | `GRAPHQL_PATH`                                  | ✅       | GraphQL endpoint path                                                             |
 | `GRAPHQL_INTROSPECTION`                         |          | Enable schema introspection (hard-off in production regardless of this)           |
 | `DATABASE_URL`                                  | ✅       | PostgreSQL connection string (set `?connection_limit=N` explicitly)               |
+| `DB_LOGGING`                                    |          | Log Prisma queries to stdout (`true`/`false`, default `false`)                    |
 | `JWT_SECRET` / `JWT_EXPIRES_IN`                 | ✅       | Access token signing secret & TTL                                                 |
 | `JWT_REFRESH_SECRET` / `JWT_REFRESH_EXPIRES_IN` |          | Refresh session config & TTL                                                      |
 | `COOKIE_DOMAIN`                                 |          | Domain the auth cookies are scoped to                                             |

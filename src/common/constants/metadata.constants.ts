@@ -1,6 +1,7 @@
 /** Reflector metadata keys shared by decorators + guards (single source, DRY). */
 export const ROLES_KEY = 'roles';
 export const IS_PUBLIC_KEY = 'isPublic';
+export const PERMISSIONS_KEY = 'permissions';
 
 /**
  * When set on a handler, the user must hold one of the listed roles EXACTLY
